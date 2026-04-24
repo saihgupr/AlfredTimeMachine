@@ -46,10 +46,10 @@ Select any file or application in Finder or Alfred, press your Universal Actions
 
 You'll see a list of all available backup versions with human-readable dates.
 
-**↩ Enter** — Restores a `.restored` copy next to the original  
+**↩ Enter** — Restores a `(Restored)` copy next to the original  
 **⌘↩ Enter** — Restores a copy to your Home folder instead
 
-Once happy, rename/replace the original with the `.restored` copy.""",
+Once happy, rename/replace the original with the `(Restored)` copy.""",
 
     "connections": {
         # UA → Args & Vars
@@ -171,10 +171,10 @@ Once happy, rename/replace the original with the `.restored` copy.""",
                     'chmod +x ./retro 2>/dev/null\n'
                     'SOURCE="$SOURCE_PATH"\n'
                     'DEST="$DEST_PATH"\n'
-                    'DESKTOP="$RESTORE_TO_DESKTOP"\n'
+                    'DESKTOP="$RESTORE_TO_HOME"\n'
                     "\n"
                     'if [[ "$DESKTOP" == "1" ]]; then\n'
-                    '    ./retro restore "$SOURCE" "$DEST" --desktop\n'
+                    '    ./retro restore "$SOURCE" "$DEST" --home\n'
                     "else\n"
                     '    ./retro restore "$SOURCE" "$DEST"\n'
                     "fi\n"

@@ -136,9 +136,13 @@ func findVersions(for inputPath: String) -> [BackupVersion] {
                     let ts = backup.replacingOccurrences(of: ".backup", with: "")
                     if let subDirs = try? fm.contentsOfDirectory(atPath: backupPath) {
                         for sub in subDirs {
-                            let candidate = "\(backupPath)/\(sub)\(targetPath)"
-                            if fm.fileExists(atPath: candidate) {
-                                versions.append(BackupVersion(sourcePath: candidate, originalPath: inputPath, timestamp: ts))
+                            let dataCandidate = "\(backupPath)/\(sub)/Data\(targetPath)"
+                            let sysCandidate = "\(backupPath)/\(sub)\(targetPath)"
+                            
+                            if fm.fileExists(atPath: dataCandidate) {
+                                versions.append(BackupVersion(sourcePath: dataCandidate, originalPath: inputPath, timestamp: ts))
+                            } else if fm.fileExists(atPath: sysCandidate) {
+                                versions.append(BackupVersion(sourcePath: sysCandidate, originalPath: inputPath, timestamp: ts))
                             }
                         }
                     }
@@ -203,7 +207,7 @@ func outputAlfredJSON(versions: [BackupVersion], originalPath: String) {
                 "cmd": [
                     "subtitle": "⌘ Restore to Home folder instead",
                     "valid": true,
-                    "variables": ["RESTORE_TO_DESKTOP": "1"]
+                    "variables": ["RESTORE_TO_HOME": "1"]
                 ]
             ]
         ])
@@ -217,7 +221,7 @@ func outputAlfredJSON(versions: [BackupVersion], originalPath: String) {
 }
 
 // MARK: - Restore
-func restore(sourcePath: String, destPath: String, toDesktop: Bool = false) {
+func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
     let fm = FileManager.default
     
     // Helper to perform the copy
@@ -225,17 +229,58 @@ func restore(sourcePath: String, destPath: String, toDesktop: Bool = false) {
         if fm.fileExists(atPath: finalDest) {
             try fm.removeItem(atPath: finalDest)
         }
-        try fm.copyItem(atPath: sourcePath, toPath: finalDest)
+        
+        do {
+            try fm.copyItem(atPath: sourcePath, toPath: finalDest)
+        } catch {
+            // Clean up any empty/broken folder left by FileManager before falling back
+            if fm.fileExists(atPath: finalDest) {
+                try? fm.removeItem(atPath: finalDest)
+            }
+            
+            // Standard copy fails on external TM backups due to strict ACLs/xattrs.
+            // Fallback to ditto, which is robust for Mac app bundles and TM paths
+            let task = Process()
+            task.executableURL = URL(fileURLWithPath: "/usr/bin/ditto")
+            task.arguments = [sourcePath, finalDest]
+            try? task.run()
+            task.waitUntilExit()
+            
+            // ditto may return non-zero for ACL failures even if copy succeeds.
+            if !fm.fileExists(atPath: finalDest) || task.terminationStatus != 0 {
+                // If ditto fails, ensure path is clean again before trying cp
+                if fm.fileExists(atPath: finalDest) {
+                    try? fm.removeItem(atPath: finalDest)
+                }
+                
+                // Fallback to standard cp -R
+                let task2 = Process()
+                task2.executableURL = URL(fileURLWithPath: "/bin/cp")
+                task2.arguments = ["-R", sourcePath, finalDest]
+                try? task2.run()
+                task2.waitUntilExit()
+                
+                // cp -R often returns 1 on macOS for xattr/ACL failures even if the copy succeeds.
+                // We check if the destination exists as our ultimate success metric.
+                if !fm.fileExists(atPath: finalDest) {
+                    throw error // throw the original FileManager error
+                }
+            }
+        }
     }
     
-    let fileName = URL(fileURLWithPath: destPath).lastPathComponent
-    let desktopDest = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Desktop/\(fileName).restored").path
-    let originalDest = destPath + ".restored"
+    let destURL = URL(fileURLWithPath: destPath)
+    let ext = destURL.pathExtension
+    let base = destURL.deletingPathExtension().lastPathComponent
+    let restoredName = ext.isEmpty ? "\(base) (Restored)" : "\(base) (Restored).\(ext)"
     
-    if toDesktop {
+    let homeDest = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(restoredName).path
+    let originalDest = destURL.deletingLastPathComponent().appendingPathComponent(restoredName).path
+    
+    if toHome {
         do {
-            try attemptCopy(to: desktopDest)
-            print("Successfully restored to Desktop as \(fileName).restored")
+            try attemptCopy(to: homeDest)
+            print("Successfully restored to Home folder as \(restoredName)")
         } catch {
             print("❌ Restore failed: \(error.localizedDescription)")
             exit(1)
@@ -246,10 +291,10 @@ func restore(sourcePath: String, destPath: String, toDesktop: Bool = false) {
             try attemptCopy(to: originalDest)
             print("Successfully restored to \(URL(fileURLWithPath: originalDest).lastPathComponent)")
         } catch {
-            // Fallback to desktop if permission denied or other error
+            // Fallback to home folder if permission denied or other error
             do {
-                try attemptCopy(to: desktopDest)
-                print("Restored to Desktop (original folder is read-only or permission denied)")
+                try attemptCopy(to: homeDest)
+                print("Restored to Home folder (original folder is read-only or permission denied)")
             } catch let fallbackError {
                 print("❌ Restore failed entirely: \(fallbackError.localizedDescription)")
                 exit(1)
@@ -297,8 +342,8 @@ case "restore":
     }
     let sourcePath = args[2]
     let destPath = args[3]
-    let toDesktop = args.contains("--desktop")
-    restore(sourcePath: sourcePath, destPath: destPath, toDesktop: toDesktop)
+    let toHome = args.contains("--home")
+    restore(sourcePath: sourcePath, destPath: destPath, toHome: toHome)
 
 default:
     fputs("Unknown command: \(args[1])\n", stderr)

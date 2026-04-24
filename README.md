@@ -58,7 +58,7 @@ This recompiles the binary and creates a fresh `Retro.alfredworkflow`.
 # List versions in Alfred JSON format
 ./retro list /Applications/Dia.app --alfred
 
-# Restore: creates a .restored copy next to the original  
+# Restore: creates a (Restored) copy next to the original  
 ./retro restore "/path/to/backup/source" "/Applications/Dia.app"
 
 # Restore to Desktop instead
@@ -112,3 +112,4 @@ This:
 1. Compiles `retro.swift` → `retro` binary
 2. Generates a valid Alfred 5 `info.plist` using Python
 3. Packages `retro` + `info.plist` → `Retro.alfredworkflow`
+rkflow`
