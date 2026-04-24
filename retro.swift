@@ -47,6 +47,9 @@ struct BackupVersion {
         return sourcePath.contains("TimeMachine.localsnapshots")
     }
 }
+ 
+// String data helper
+extension String { var lineData: Data? { (self).data(using: .utf8) } }
 
 // MARK: - Helpers
 func runProcess(_ exec: String, args: [String]) -> String {
@@ -66,15 +69,14 @@ func runProcess(_ exec: String, args: [String]) -> String {
 // Returns true if we can read Time Machine paths (proxy for FDA).
 func hasFullDiskAccess() -> Bool {
     let fm = FileManager.default
-    // These paths require FDA on macOS 10.15+
     let testPaths = [
         "/Volumes/com.apple.TimeMachine.localsnapshots",
         "/Volumes/TimeMachine",
         "/Volumes/.timemachine"
     ]
-    // If at least one TM path is accessible, we have enough access
     for path in testPaths {
-        if fm.fileExists(atPath: path) {
+        // fileExists can be true even without FDA, but contentsOfDirectory requires it
+        if (try? fm.contentsOfDirectory(atPath: path)) != nil {
             return true
         }
     }
@@ -103,14 +105,34 @@ func findVersions(for inputPath: String, debugLogger: ((String) -> Void)? = nil)
     var backupPoints: Set<String> = []
     
     // --- Discovery phase ---
-    
-    // --- Discovery phase ---
+    let logPath = "/tmp/alfred-tm-debug.log"
+    let log = { (msg: String) in
+        let timestamp = Date().description
+        let line = "[\(timestamp)] \(msg)\n"
+        if let data = line.lineData {
+            if fm.fileExists(atPath: logPath) {
+                if let handle = try? FileHandle(forWritingTo: URL(fileURLWithPath: logPath)) {
+                    handle.seekToEndOfFile()
+                    handle.write(data)
+                    handle.closeFile()
+                }
+            } else {
+                try? data.write(to: URL(fileURLWithPath: logPath))
+            }
+        }
+        debugLogger?(msg)
+    }
+    log("--- alfred-tm v1.1.2 DEBUG ---")
+    log("FDA Status: \(hasFullDiskAccess())")
+    log("Finding versions for: \(inputPath)")
+    log("Resolved target path: \(targetPath)")
     
     // 1. Discover mounted TM drives via destinationinfo (Most common)
     let destInfo = runProcess("/usr/bin/tmutil", args: ["destinationinfo"])
+    log("tmutil destinationinfo output: \(destInfo)")
     for line in destInfo.components(separatedBy: .newlines) where line.contains("Mount Point") {
         if let path = line.components(separatedBy: ":").last?.trimmingCharacters(in: .whitespaces), !path.isEmpty {
-            debugLogger?("Checking TM destination: \(path)")
+            log("Checking TM destination: \(path)")
             // Check root (Modern APFS)
             if let entries = try? fm.contentsOfDirectory(atPath: path) {
                 for entry in entries where entry.hasSuffix(".previous") || entry.hasSuffix(".backup") {
@@ -131,8 +153,8 @@ func findVersions(for inputPath: String, debugLogger: ((String) -> Void)? = nil)
             }
         }
     }
+    log("Points after destInfo: \(backupPoints.count)")
     
-    // 2. Local snapshots (already mounted)
     let snapRoot = "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb"
     if let computers = try? fm.contentsOfDirectory(atPath: snapRoot) {
         for computer in computers {
@@ -144,12 +166,15 @@ func findVersions(for inputPath: String, debugLogger: ((String) -> Void)? = nil)
             }
         }
     }
+    log("Points after local snaps: \(backupPoints.count)")
     
     // 3. tmutil listbackups -m (Mounts and lists EVERY available historical backup)
     let tmutilOutput = runProcess("/usr/bin/tmutil", args: ["listbackups", "-m"])
+    log("tmutil listbackups -m output lines: \(tmutilOutput.components(separatedBy: .newlines).count)")
     for path in tmutilOutput.components(separatedBy: .newlines) where !path.isEmpty {
         backupPoints.insert(path)
     }
+    log("Points after listbackups -m: \(backupPoints.count)")
     
     // 4. Hidden volumes (Source 3 legacy crawl fallback)
     let tmHidden = "/Volumes/.timemachine"
@@ -177,13 +202,15 @@ func findVersions(for inputPath: String, debugLogger: ((String) -> Void)? = nil)
         }
     }
 
-    debugLogger?("Found \(backupPoints.count) potential backup points. Searching for file...")
+    log("Found \(backupPoints.count) potential backup points. Searching for file...")
 
     // --- Search phase ---
     
     func checkCandidate(_ path: String, ts: String) -> Bool {
+        // Only log first 5 candidates to avoid log bloat, or log if found
         var isDir: ObjCBool = false
         if fm.fileExists(atPath: path, isDirectory: &isDir) {
+            log("FOUND: \(path)")
             var isReal = true
             if !isDir.boolValue {
                 if let attr = try? fm.attributesOfItem(atPath: path), let size = attr[.size] as? NSNumber, size.intValue == 0 {
