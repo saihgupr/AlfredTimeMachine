@@ -236,8 +236,11 @@ func outputAlfredJSON(versions: [BackupVersion], originalPath: String) {
         let title = hasFDA
             ? "No backup versions found"
             : "Alfred needs Full Disk Access"
+        // Debug info: let's see why it's failing
+        let targetPath = resolveInputPath(originalPath)
+        let tmDests = runProcess("/usr/bin/tmutil", args: ["destinationinfo"]).contains("Mount Point")
         let subtitle = hasFDA
-            ? "Time Machine has no backups for this file"
+            ? "Path: \(originalPath) | Resolved: \(targetPath) | TM: \(tmDests ? "Yes" : "No")"
             : "Open System Settings → Privacy → Full Disk Access → enable Alfred"
         let arg = hasFDA ? "" : "open x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"
         
@@ -410,8 +413,7 @@ case "list":
     }
     let isAlfred = args.contains("--alfred")
     
-    // Mount local snapshots to ensure they are accessible
-    _ = runProcess("/usr/bin/tmutil", args: ["mountlocalsnapshots", "/"])
+    // Mount local snapshots to ensure they are accessible (Skipped: requires root)
     
     let versions = findVersions(for: args[2]) { msg in
         if !isAlfred {
