@@ -31,6 +31,7 @@ UID_FILTER   = "A1B2C3D4-0002-0002-0002-000000000002"
 UID_RESTORE  = "A1B2C3D4-0003-0003-0003-000000000003"
 UID_NOTIFY_S = "A1B2C3D4-0005-0005-0005-000000000005"
 UID_NOTIFY_F = "A1B2C3D4-0006-0006-0006-000000000006"
+UID_HIDE     = "A1B2C3D4-0007-0007-0007-000000000007"
 
 workflow = {
     "bundleid": "com.saihgupr.retro",
@@ -71,8 +72,14 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
                 "vitoclose": False,
             }
         ],
-        # Script Filter → Start Notification AND Restore Action
+        # Script Filter → Hide Alfred, Start Notification, and Restore Action
         UID_FILTER: [
+            {
+                "destinationuid": UID_HIDE,
+                "modifiers": 0,
+                "modifiersubtext": "",
+                "vitoclose": True,
+            },
             {
                 "destinationuid": UID_NOTIFY_S,
                 "modifiers": 0,
@@ -97,6 +104,7 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
         ],
         UID_NOTIFY_S: [],
         UID_NOTIFY_F: [],
+        UID_HIDE: [],
     },
 
     "objects": [
@@ -211,6 +219,14 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
                 "subtitle": "",
                 "text": "{query}",
             },
+        },
+
+        # ─── 7. Hide Alfred Utility ──────────────────────────────────────────────
+        {
+            "type": "alfred.workflow.utility.hidealfred",
+            "uid": UID_HIDE,
+            "version": 1,
+            "config": {},
         },
     ],
 
