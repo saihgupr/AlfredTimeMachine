@@ -133,8 +133,8 @@ func findVersions(for inputPath: String, debugLogger: ((String) -> Void)? = nil)
         }
     }
     
-    // 3. tmutil listbackups (Catch hidden/network backups)
-    let tmutilOutput = runProcess("/usr/bin/tmutil", args: ["listbackups"])
+    // 3. tmutil listbackups -m (Mounts and lists EVERY available historical backup)
+    let tmutilOutput = runProcess("/usr/bin/tmutil", args: ["listbackups", "-m"])
     for path in tmutilOutput.components(separatedBy: .newlines) where !path.isEmpty {
         backupPoints.insert(path)
     }
