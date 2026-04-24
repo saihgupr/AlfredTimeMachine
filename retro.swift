@@ -235,7 +235,7 @@ func outputAlfredJSON(versions: [BackupVersion], originalPath: String) {
         let hasFDA = hasFullDiskAccess()
         let title = hasFDA
             ? "No backup versions found"
-            : "⚠️ Alfred needs Full Disk Access"
+            : "Alfred needs Full Disk Access"
         let subtitle = hasFDA
             ? "Time Machine has no backups for this file"
             : "Open System Settings → Privacy → Full Disk Access → enable Alfred"
@@ -262,7 +262,7 @@ func outputAlfredJSON(versions: [BackupVersion], originalPath: String) {
     
     var items: [[String: Any]] = []
     for v in versions {
-        let sourceLabel = v.isLocalSnapshot ? "📍 Local Snapshot" : "💾 External Drive"
+        let sourceLabel = v.isLocalSnapshot ? "Local Snapshot" : "External Drive"
         items.append([
             "title": v.humanReadable,
             "subtitle": "\(v.ageDescription)  ·  \(sourceLabel)",
@@ -371,7 +371,7 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
             finalizeRestore(at: homeDest)
             print("Successfully restored to Home folder as \(restoredName)")
         } catch {
-            print("❌ Restore failed: \(error.localizedDescription)")
+            print("Restore failed: \(error.localizedDescription)")
             exit(1)
         }
     } else {
@@ -387,7 +387,7 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
                 finalizeRestore(at: homeDest)
                 print("Restored to Home folder (original folder is read-only or permission denied)")
             } catch let fallbackError {
-                print("❌ Restore failed entirely: \(fallbackError.localizedDescription)")
+                print("Restore failed entirely: \(fallbackError.localizedDescription)")
                 exit(1)
             }
         }
