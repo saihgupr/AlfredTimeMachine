@@ -13,8 +13,9 @@ BUNDLE_DIR="$SCRIPT_DIR/AlfredTimeMachine.bundle"
 rm -rf "$BUNDLE_DIR"
 mkdir -p "$BUNDLE_DIR"
 
-# Copy binary into bundle
+# Copy binary and icon into bundle
 cp alfred-tm "$BUNDLE_DIR/alfred-tm"
+cp icon.png "$BUNDLE_DIR/icon.png"
 
 # Write the info.plist using Python for reliable plist generation
 python3 - "$BUNDLE_DIR" << 'PYEOF'
