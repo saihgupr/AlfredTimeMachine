@@ -397,15 +397,15 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
 // MARK: - Main CLI Dispatch
 let args = CommandLine.arguments
 guard args.count > 1 else {
-    print("Usage: retro list <path> [--alfred]")
-    print("       retro restore <source_path> <dest_path> [--desktop]")
+    print("Usage: alfred-tm list <path> [--alfred]")
+    print("       alfred-tm restore <source_path> <dest_path> [--desktop]")
     exit(1)
 }
 
 switch args[1] {
 case "list":
     guard args.count > 2 else {
-        fputs("Error: retro list requires a file path\n", stderr)
+        fputs("Error: alfred-tm list requires a file path\n", stderr)
         exit(1)
     }
     let isAlfred = args.contains("--alfred")
@@ -436,7 +436,7 @@ case "list":
     
 case "restore":
     guard args.count > 3 else {
-        fputs("Error: retro restore requires source and destination paths\n", stderr)
+        fputs("Error: alfred-tm restore requires source and destination paths\n", stderr)
         exit(1)
     }
     let sourcePath = args[2]

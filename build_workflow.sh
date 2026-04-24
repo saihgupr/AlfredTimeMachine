@@ -4,17 +4,17 @@ set -e
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-echo "🔨 Compiling retro binary..."
-swiftc retro.swift -o retro 2>&1
-echo "✅ Compiled successfully"
+echo "Compiling binary..."
+swiftc retro.swift -o alfred-tm 2>&1
+echo "Compiled successfully"
 
-echo "📦 Building Alfred workflow bundle..."
-BUNDLE_DIR="$SCRIPT_DIR/RetroWorkflow.bundle"
+echo "Building Alfred workflow bundle..."
+BUNDLE_DIR="$SCRIPT_DIR/AlfredTimeMachine.bundle"
 rm -rf "$BUNDLE_DIR"
 mkdir -p "$BUNDLE_DIR"
 
 # Copy binary into bundle
-cp retro "$BUNDLE_DIR/retro"
+cp alfred-tm "$BUNDLE_DIR/alfred-tm"
 
 # Write the info.plist using Python for reliable plist generation
 python3 - "$BUNDLE_DIR" << 'PYEOF'
@@ -34,17 +34,17 @@ UID_NOTIFY_F = "A1B2C3D4-0006-0006-0006-000000000006"
 UID_HIDE     = "A1B2C3D4-0007-0007-0007-000000000007"
 
 workflow = {
-    "bundleid": "com.saihgupr.retro",
+    "bundleid": "com.saihgupr.alfred-time-machine",
     "category": "Productivity",
     "createdby": "saihgupr",
     "description": "Browse and restore files from Time Machine backups — no slow UI required.",
     "disabled": False,
-    "name": "Retro — Time Machine Restore",
+    "name": "Alfred Time Machine",
     "version": "1.1.0",
     "webaddress": "",
-    "readme": """## Retro — Time Machine Restore
+    "readme": """## Alfred Time Machine
 
-Select any file or application in Finder or Alfred, press your Universal Actions hotkey, and choose **"Retro: Browse Time Machine Versions"**.
+Select any file or application in Finder or Alfred, press your Universal Actions hotkey, and choose **"Alfred Time Machine: Browse Versions"**.
 
 You'll see a list of all available backup versions with human-readable dates.
 
@@ -118,7 +118,7 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
                 "acceptstext": False,
                 "acceptsurls": False,
                 "acceptsmulti": 0,
-                "name": "Retro: Browse Time Machine Versions",
+                "name": "Alfred Time Machine: Browse Versions",
             },
         },
         
@@ -154,7 +154,7 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
                 "queuedelaymode": 0,
                 "queuemode": 1,
                 "runningsubtext": "Scanning Time Machine backups…",
-                "script": 'chmod +x ./retro 2>/dev/null; ./retro list "$TARGET_FILE" --alfred',
+                "script": 'chmod +x ./alfred-tm 2>/dev/null; ./alfred-tm list "$TARGET_FILE" --alfred',
                 "scriptargtype": 1,
                 "scriptfile": "",
                 "subtext": "Pick a backup version to restore",
@@ -180,15 +180,15 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
                     '    exit 0\n'
                     'fi\n'
                     "\n"
-                    'chmod +x ./retro 2>/dev/null\n'
+                    'chmod +x ./alfred-tm 2>/dev/null\n'
                     'SOURCE="$SOURCE_PATH"\n'
                     'DEST="$DEST_PATH"\n'
                     'DESKTOP="$RESTORE_TO_HOME"\n'
                     "\n"
                     'if [[ "$DESKTOP" == "1" ]]; then\n'
-                    '    ./retro restore "$SOURCE" "$DEST" --home\n'
+                    '    ./alfred-tm restore "$SOURCE" "$DEST" --home\n'
                     "else\n"
-                    '    ./retro restore "$SOURCE" "$DEST"\n'
+                    '    ./alfred-tm restore "$SOURCE" "$DEST"\n'
                     "fi\n"
                 ),
                 "scriptargtype": 1,
@@ -249,7 +249,7 @@ PYEOF
 plutil -lint "$BUNDLE_DIR/info.plist" && echo "✅ plist is valid"
 
 # Package as .alfredworkflow
-OUTPUT="$SCRIPT_DIR/Retro.alfredworkflow"
+OUTPUT="$SCRIPT_DIR/AlfredTimeMachine.alfredworkflow"
 rm -f "$OUTPUT"
 cd "$BUNDLE_DIR"
 zip -r "$OUTPUT" . -x "*.DS_Store"
@@ -257,15 +257,15 @@ cd "$SCRIPT_DIR"
 rm -rf "$BUNDLE_DIR"
 
 echo ""
-echo "🎉 Done! Retro.alfredworkflow created at:"
+echo "Done! AlfredTimeMachine.alfredworkflow created at:"
 echo "   $OUTPUT"
 echo ""
-echo "To install: double-click Retro.alfredworkflow"
+echo "To install: double-click AlfredTimeMachine.alfredworkflow"
 echo ""
 echo "Usage:"
 echo "  1. In Finder, click any file or app"
 echo "  2. Press your Alfred Universal Actions hotkey"  
-echo "  3. Select 'Retro: Browse Time Machine Versions'"
+echo "  3. Select 'Alfred Time Machine: Browse Versions'"
 echo "  4. Choose a date and press Enter to restore"
 
 # Automatically open and install in Alfred
