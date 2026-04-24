@@ -26,9 +26,10 @@ bundle_dir = sys.argv[1]
 
 # UIDs for our workflow nodes
 UID_UA       = "A1B2C3D4-0001-0001-0001-000000000001"
+UID_VARS     = "A1B2C3D4-0004-0004-0004-000000000004"
 UID_FILTER   = "A1B2C3D4-0002-0002-0002-000000000002"
 UID_RESTORE  = "A1B2C3D4-0003-0003-0003-000000000003"
-UID_OPENURL  = "A1B2C3D4-0005-0005-0005-000000000005"
+UID_NOTIFY   = "A1B2C3D4-0005-0005-0005-000000000005"
 
 workflow = {
     "bundleid": "com.saihgupr.retro",
@@ -46,13 +47,22 @@ Select any file or application in Finder or Alfred, press your Universal Actions
 You'll see a list of all available backup versions with human-readable dates.
 
 **↩ Enter** — Restores a `.restored` copy next to the original  
-**⌘↩ Enter** — Restores a copy to your Desktop instead
+**⌘↩ Enter** — Restores a copy to your Home folder instead
 
 Once happy, rename/replace the original with the `.restored` copy.""",
 
     "connections": {
-        # UA → Script Filter
+        # UA → Args & Vars
         UID_UA: [
+            {
+                "destinationuid": UID_VARS,
+                "modifiers": 0,
+                "modifiersubtext": "",
+                "vitoclose": False,
+            }
+        ],
+        # Args & Vars → Script Filter
+        UID_VARS: [
             {
                 "destinationuid": UID_FILTER,
                 "modifiers": 0,
@@ -69,8 +79,16 @@ Once happy, rename/replace the original with the `.restored` copy.""",
                 "vitoclose": True,
             }
         ],
-        UID_RESTORE: [],
-        UID_OPENURL: [],
+        # Restore → Notification
+        UID_RESTORE: [
+            {
+                "destinationuid": UID_NOTIFY,
+                "modifiers": 0,
+                "modifiersubtext": "",
+                "vitoclose": False,
+            }
+        ],
+        UID_NOTIFY: [],
     },
 
     "objects": [
@@ -87,19 +105,34 @@ Once happy, rename/replace the original with the `.restored` copy.""",
                 "name": "Retro: Browse Time Machine Versions",
             },
         },
+        
+        # ─── 2. Args and Vars ────────────────────────────────────────────────────
+        # Save {query} to TARGET_FILE, clear {query} for the Script Filter
+        {
+            "type": "alfred.workflow.utility.argument",
+            "uid": UID_VARS,
+            "version": 1,
+            "config": {
+                "argument": "",
+                "passthroughargument": False,
+                "variables": {
+                    "TARGET_FILE": "{query}",
+                }
+            },
+        },
 
-        # ─── 2. Script Filter ────────────────────────────────────────────────────
-        # This is triggered by the Universal Action; {query} = the selected file path
+        # ─── 3. Script Filter ────────────────────────────────────────────────────
+        # Uses TARGET_FILE from env. Empty query allows typing to filter natively.
         {
             "type": "alfred.workflow.input.scriptfilter",
             "uid": UID_FILTER,
             "version": 3,
             "config": {
-                "alfredfiltersresults": False,
+                "alfredfiltersresults": True,
                 "alfredfiltersresultsmatchmode": 0,
                 "argumenttreatemptyqueryasnil": True,
                 "argumenttrimmode": 0,
-                "argumenttype": 1,    # 1 = pass argument as {query}
+                "argumenttype": 1,
                 "escaping": 102,
                 "keyword": "",
                 "queuedelaycustom": 3,
@@ -107,7 +140,7 @@ Once happy, rename/replace the original with the `.restored` copy.""",
                 "queuedelaymode": 0,
                 "queuemode": 1,
                 "runningsubtext": "Scanning Time Machine backups…",
-                "script": 'chmod +x ./retro 2>/dev/null; ./retro list "$1" --alfred',
+                "script": 'chmod +x ./retro 2>/dev/null; ./retro list "$TARGET_FILE" --alfred',
                 "scriptargtype": 1,
                 "scriptfile": "",
                 "subtext": "Pick a backup version to restore",
@@ -117,9 +150,7 @@ Once happy, rename/replace the original with the `.restored` copy.""",
             },
         },
 
-        # ─── 3. Run Script (Restore or open System Settings) ────────────────────
-        # SOURCE_PATH and DEST_PATH come from Alfred variables set per-item in the JSON.
-        # If the arg is a URL (FDA error case), it opens System Settings instead.
+        # ─── 4. Run Script (Restore or open System Settings) ────────────────────
         {
             "type": "alfred.workflow.action.script",
             "uid": UID_RESTORE,
@@ -133,13 +164,14 @@ Once happy, rename/replace the original with the `.restored` copy.""",
                     'ARG="$1"\n'
                     'if [[ "$ARG" == open* ]]; then\n'
                     '    /usr/bin/open "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"\n'
+                    '    echo "Opened System Settings"\n'
                     '    exit 0\n'
                     'fi\n'
                     "\n"
                     'chmod +x ./retro 2>/dev/null\n'
-                    'SOURCE="{var:SOURCE_PATH}"\n'
-                    'DEST="{var:DEST_PATH}"\n'
-                    'DESKTOP="{var:RESTORE_TO_DESKTOP}"\n'
+                    'SOURCE="$SOURCE_PATH"\n'
+                    'DEST="$DEST_PATH"\n'
+                    'DESKTOP="$RESTORE_TO_DESKTOP"\n'
                     "\n"
                     'if [[ "$DESKTOP" == "1" ]]; then\n'
                     '    ./retro restore "$SOURCE" "$DEST" --desktop\n'
@@ -152,12 +184,26 @@ Once happy, rename/replace the original with the `.restored` copy.""",
                 "type": 5,  # /bin/zsh
             },
         },
+        
+        # ─── 5. Post Notification ────────────────────────────────────────────────
+        {
+            "type": "alfred.workflow.output.notification",
+            "uid": UID_NOTIFY,
+            "version": 1,
+            "config": {
+                "title": "Retro Time Machine",
+                "subtitle": "",
+                "text": "{query}",
+            },
+        },
     ],
 
     "uidata": {
         UID_UA:      {"note": "Universal Action trigger", "xpos": 60.0,  "ypos": 100.0},
+        UID_VARS:    {"note": "Save TARGET_FILE", "xpos": 230.0, "ypos": 130.0},
         UID_FILTER:  {"note": "Script Filter: list versions", "xpos": 340.0, "ypos": 100.0},
-        UID_RESTORE: {"note": "Run Script: restore file or open FDA settings", "xpos": 620.0, "ypos": 100.0},
+        UID_RESTORE: {"note": "Run Script: restore file", "xpos": 520.0, "ypos": 100.0},
+        UID_NOTIFY:  {"note": "Post Notification", "xpos": 700.0, "ypos": 100.0},
     },
 }
 

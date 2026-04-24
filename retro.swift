@@ -192,6 +192,8 @@ func outputAlfredJSON(versions: [BackupVersion], originalPath: String) {
             "title": v.humanReadable,
             "subtitle": "\(v.ageDescription)  ·  \(sourceLabel)",
             "arg": v.sourcePath,           // The full backup source path
+            "type": "file",
+            "valid": true,
             "variables": [
                 "SOURCE_PATH": v.sourcePath,
                 "DEST_PATH": originalPath
@@ -199,7 +201,7 @@ func outputAlfredJSON(versions: [BackupVersion], originalPath: String) {
             "icon": ["type": "fileicon", "path": originalPath],
             "mods": [
                 "cmd": [
-                    "subtitle": "⌘ Restore to Desktop instead",
+                    "subtitle": "⌘ Restore to Home folder instead",
                     "valid": true,
                     "variables": ["RESTORE_TO_DESKTOP": "1"]
                 ]
@@ -217,28 +219,42 @@ func outputAlfredJSON(versions: [BackupVersion], originalPath: String) {
 // MARK: - Restore
 func restore(sourcePath: String, destPath: String, toDesktop: Bool = false) {
     let fm = FileManager.default
-    var finalDest: String
+    
+    // Helper to perform the copy
+    func attemptCopy(to finalDest: String) throws {
+        if fm.fileExists(atPath: finalDest) {
+            try fm.removeItem(atPath: finalDest)
+        }
+        try fm.copyItem(atPath: sourcePath, toPath: finalDest)
+    }
+    
+    let fileName = URL(fileURLWithPath: destPath).lastPathComponent
+    let desktopDest = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Desktop/\(fileName).restored").path
+    let originalDest = destPath + ".restored"
     
     if toDesktop {
-        let fileName = URL(fileURLWithPath: destPath).lastPathComponent
-        let desktopURL = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent("Desktop/\(fileName).restored")
-        finalDest = desktopURL.path
+        do {
+            try attemptCopy(to: desktopDest)
+            print("Successfully restored to Desktop as \(fileName).restored")
+        } catch {
+            print("❌ Restore failed: \(error.localizedDescription)")
+            exit(1)
+        }
     } else {
-        finalDest = destPath + ".restored"
-    }
-    
-    // Remove any existing .restored
-    if fm.fileExists(atPath: finalDest) {
-        try? fm.removeItem(atPath: finalDest)
-    }
-    
-    do {
-        try fm.copyItem(atPath: sourcePath, toPath: finalDest)
-        // Output a notification-friendly message for Alfred
-        print("✅ Restored to: \(finalDest)")
-    } catch {
-        fputs("❌ Restore failed: \(error.localizedDescription)\n", stderr)
-        exit(1)
+        do {
+            // Try original location first
+            try attemptCopy(to: originalDest)
+            print("Successfully restored to \(URL(fileURLWithPath: originalDest).lastPathComponent)")
+        } catch {
+            // Fallback to desktop if permission denied or other error
+            do {
+                try attemptCopy(to: desktopDest)
+                print("Restored to Desktop (original folder is read-only or permission denied)")
+            } catch let fallbackError {
+                print("❌ Restore failed entirely: \(fallbackError.localizedDescription)")
+                exit(1)
+            }
+        }
     }
 }
 
