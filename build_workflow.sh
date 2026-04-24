@@ -140,7 +140,7 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
                 "queuedelaymode": 0,
                 "queuemode": 1,
                 "runningsubtext": "Scanning Time Machine backups…",
-                "script": 'chmod +x ./retro 2>/dev/null; ./retro list "$TARGET_FILE" --alfred',
+                "script": 'chmod +x ./retro 2>/dev/null; ./retro list "$TARGET_FILE" --alfred --debug',
                 "scriptargtype": 1,
                 "scriptfile": "",
                 "subtext": "Pick a backup version to restore",
@@ -236,3 +236,6 @@ echo "  1. In Finder, click any file or app"
 echo "  2. Press your Alfred Universal Actions hotkey"  
 echo "  3. Select 'Retro: Browse Time Machine Versions'"
 echo "  4. Choose a date and press Enter to restore"
+
+# Automatically open and install in Alfred
+open "$OUTPUT"

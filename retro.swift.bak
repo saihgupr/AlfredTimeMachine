@@ -88,126 +88,105 @@ func findVersions(for inputPath: String, debugLogger: ((String) -> Void)? = nil)
     let fm = FileManager.default
     let targetPath = resolveInputPath(inputPath)
     var versions: [BackupVersion] = []
-    var backupPoints: Set<String> = []
     
-    // --- Discovery phase ---
-    
-    // --- Discovery phase ---
-    
-    // 1. Discover mounted TM drives via destinationinfo (Most common)
-    let destInfo = runProcess("/usr/bin/tmutil", args: ["destinationinfo"])
-    for line in destInfo.components(separatedBy: .newlines) where line.contains("Mount Point") {
-        if let path = line.components(separatedBy: ":").last?.trimmingCharacters(in: .whitespaces), !path.isEmpty {
-            debugLogger?("Checking TM destination: \(path)")
-            // Check root (Modern APFS)
-            if let entries = try? fm.contentsOfDirectory(atPath: path) {
-                for entry in entries where entry.hasSuffix(".previous") || entry.hasSuffix(".backup") {
-                    backupPoints.insert("\(path)/\(entry)")
-                }
-            }
-            // Check Backups.backupdb (Legacy HFS+)
-            let dbPath = "\(path)/Backups.backupdb"
-            if let computers = try? fm.contentsOfDirectory(atPath: dbPath) {
-                for computer in computers {
-                    let computerPath = "\(dbPath)/\(computer)"
-                    if let entries = try? fm.contentsOfDirectory(atPath: computerPath) {
-                        for entry in entries where entry.hasSuffix(".previous") || entry.hasSuffix(".backup") || entry == "Latest" {
-                            backupPoints.insert("\(computerPath)/\(entry)")
-                        }
-                    }
-                }
-            }
-        }
-    }
-    
-    // 2. Local snapshots (already mounted)
-    let snapRoot = "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb"
-    if let computers = try? fm.contentsOfDirectory(atPath: snapRoot) {
-        for computer in computers {
-            let computerPath = "\(snapRoot)/\(computer)"
-            if let snaps = try? fm.contentsOfDirectory(atPath: computerPath) {
-                for snap in snaps {
-                    backupPoints.insert("\(computerPath)/\(snap)")
-                }
-            }
-        }
-    }
-    
-    // 3. tmutil listbackups (Catch hidden/network backups)
-    let tmutilOutput = runProcess("/usr/bin/tmutil", args: ["listbackups"])
-    for path in tmutilOutput.components(separatedBy: .newlines) where !path.isEmpty {
-        backupPoints.insert(path)
-    }
-    
-    // 4. Hidden volumes (Source 3 legacy crawl fallback)
-    let tmHidden = "/Volumes/.timemachine"
-    if let uuids = try? fm.contentsOfDirectory(atPath: tmHidden) {
-        for uuid in uuids {
-            let uuidPath = "\(tmHidden)/\(uuid)"
-            if let backups = try? fm.contentsOfDirectory(atPath: uuidPath) {
-                for backup in backups where backup.hasSuffix(".backup") {
-                    backupPoints.insert("\(uuidPath)/\(backup)")
-                }
-            }
-        }
-    }
-    
-    // 5. Hidden localsnapshots discovery via tmutil dates (Backup to mounted ones)
-    let snapOutput = runProcess("/usr/bin/tmutil", args: ["listlocalsnapshotdates", "/"])
-    for line in snapOutput.components(separatedBy: .newlines) where line.contains("-") {
-        let ts = line.trimmingCharacters(in: .whitespaces)
-        if !ts.isEmpty {
-            if let computers = try? fm.contentsOfDirectory(atPath: snapRoot) {
-                for computer in computers {
-                    backupPoints.insert("\(snapRoot)/\(computer)/\(ts)")
-                }
-            }
-        }
-    }
-
-    debugLogger?("Found \(backupPoints.count) potential backup points. Searching for file...")
-
-    // --- Search phase ---
-    
-    func checkCandidate(_ path: String, ts: String) -> Bool {
+    // Helper to validate if a candidate is a "real" file and not a firmlink stub
+    func checkCandidate(_ path: String, ts: String) {
         var isDir: ObjCBool = false
         if fm.fileExists(atPath: path, isDirectory: &isDir) {
             var isReal = true
             if !isDir.boolValue {
                 if let attr = try? fm.attributesOfItem(atPath: path), let size = attr[.size] as? NSNumber, size.intValue == 0 {
-                    isReal = false // Filter out 0-byte stubs
+                    // For files, filter out 0 byte stubs
+                    isReal = false
                 }
             }
+            
             if isReal {
+                debugLogger?("✅ FOUND REAL: \(path)")
                 versions.append(BackupVersion(sourcePath: path, originalPath: inputPath, timestamp: ts))
-                return true
+            } else {
+                debugLogger?("❌ FILTERED STUB: \(path)")
             }
+        } else {
+            debugLogger?("  Not found: \(path)")
         }
-        return false
     }
-
-    for point in backupPoints {
-        let ts = URL(fileURLWithPath: point).lastPathComponent
-            .replacingOccurrences(of: ".previous", with: "")
-            .replacingOccurrences(of: ".backup", with: "")
-        
-        // 1. Check common volume roots inside the point (Data, Macintosh HD, etc.)
-        if let contents = try? fm.contentsOfDirectory(atPath: point) {
-            for volumeRoot in contents {
-                let volumePath = "\(point)/\(volumeRoot)"
-                if checkCandidate("\(volumePath)/Data\(targetPath)", ts: ts) { continue }
-                if checkCandidate("\(volumePath)\(targetPath)", ts: ts) { continue }
+    
+    // --- Source 1: External TM drive at /Volumes/TimeMachine ---
+    let tmRoot = "/Volumes/TimeMachine"
+    if let entries = try? fm.contentsOfDirectory(atPath: tmRoot) {
+        debugLogger?("Found TimeMachine entries: \(entries)")
+        for entry in entries {
+            let entryPath = "\(tmRoot)/\(entry)"
+            let ts = entry.replacingOccurrences(of: ".previous", with: "").replacingOccurrences(of: ".backup", with: "")
+            
+            if let subDirs = try? fm.contentsOfDirectory(atPath: entryPath) {
+                for sub in subDirs {
+                    let volumePath = "\(entryPath)/\(sub)"
+                    // Check APFS Data volume path
+                    checkCandidate("\(volumePath)/Data\(targetPath)", ts: ts)
+                    // Check System volume / HFS+ path
+                    checkCandidate("\(volumePath)\(targetPath)", ts: ts)
+                }
+            } else {
+                debugLogger?("Failed to read subDirs for \(entryPath)")
             }
         }
-        
-        // 2. Check point itself (Direct mounts)
-        if checkCandidate("\(point)/Data\(targetPath)", ts: ts) { continue }
-        if checkCandidate("\(point)\(targetPath)", ts: ts) { continue }
-        
-        // 3. Nested .backup (Network backups)
-        let nestedBackup = "\(point)/\(ts).backup"
-        if checkCandidate("\(nestedBackup)/Data\(targetPath)", ts: ts) { continue }
-        if checkCandidate("\(nestedBackup)\(targetPath)", ts: ts) { continue }
+    } else {
+        debugLogger?("Failed to read tmRoot \(tmRoot)")
+    }
+    
+    // --- Source 2: Local snapshots (already mounted by mountlocalsnapshots) ---
+    let snapRoot = "/Volumes/com.apple.TimeMachine.localsnapshots/Backups.backupdb"
+    if let computers = try? fm.contentsOfDirectory(atPath: snapRoot) {
+        debugLogger?("Found snapRoot computers: \(computers)")
+        for computer in computers {
+            let computerPath = "\(snapRoot)/\(computer)"
+            if let snaps = try? fm.contentsOfDirectory(atPath: computerPath) {
+                debugLogger?("Found snaps in \(computerPath): \(snaps)")
+                for snap in snaps {
+                    // Local snapshots structure: /.../snapshot_id/Data/...
+                    let volumePath = "\(computerPath)/\(snap)"
+                    checkCandidate("\(volumePath)/Data\(targetPath)", ts: snap)
+                    checkCandidate("\(volumePath)\(targetPath)", ts: snap)
+                }
+            } else {
+                debugLogger?("Failed to read computerPath \(computerPath)")
+            }
+        }
+    } else {
+        debugLogger?("Failed to read snapRoot \(snapRoot)")
+    }
+    
+    // --- Source 3: Hidden TM volume at /Volumes/.timemachine ---
+    let tmHidden = "/Volumes/.timemachine"
+    if let uuids = try? fm.contentsOfDirectory(atPath: tmHidden) {
+        debugLogger?("Found tmHidden UUIDs: \(uuids)")
+        for uuid in uuids {
+            let uuidPath = "\(tmHidden)/\(uuid)"
+            if let backups = try? fm.contentsOfDirectory(atPath: uuidPath) {
+                for backup in backups where backup.hasSuffix(".backup") {
+                    let backupPath = "\(uuidPath)/\(backup)"
+                    let ts = backup.replacingOccurrences(of: ".backup", with: "")
+                    
+                    if let subDirs = try? fm.contentsOfDirectory(atPath: backupPath) {
+                        for sub in subDirs {
+                            let volumePath = "\(backupPath)/\(sub)"
+                            // Check APFS Data volume path
+                            checkCandidate("\(volumePath)/Data\(targetPath)", ts: ts)
+                            // Check System volume / HFS+ path
+                            checkCandidate("\(volumePath)\(targetPath)", ts: ts)
+                        }
+                    } else {
+                        debugLogger?("Failed to read backupPath \(backupPath)")
+                    }
+                }
+            } else {
+                debugLogger?("Failed to read uuidPath \(uuidPath)")
+            }
+        }
+    } else {
+        debugLogger?("Failed to read tmHidden \(tmHidden)")
     }
     
     // Deduplicate and sort newest first
@@ -377,10 +356,6 @@ case "list":
         exit(1)
     }
     let isAlfred = args.contains("--alfred")
-    
-    // Mount local snapshots to ensure they are accessible
-    _ = runProcess("/usr/bin/tmutil", args: ["mountlocalsnapshots", "/"])
-    
     let versions = findVersions(for: args[2]) { msg in
         if !isAlfred {
             fputs("DEBUG: \(msg)\n", stderr)
