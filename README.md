@@ -1,115 +1,70 @@
-# Retro — Time Machine Restore for Alfred
+# Alfred Time Machine
 
 > Instant file & app restoration from Time Machine backups, right from Alfred. No slow UI, no spinning stars.
 
+<p align="center">
+  <img src="icon.png" width="128" height="128" alt="Alfred Time Machine Icon">
+</p>
+
 ## How it Works
 
-**Retro** is a two-part tool:
+**Alfred Time Machine** is a high-speed restoration tool for macOS:
 
-1. **`retro` binary** — A compiled Swift CLI that scans your Time Machine backups (both external drive and local APFS snapshots) and finds all historical versions of any file or folder.
-2. **`Retro.alfredworkflow`** — An Alfred 5 workflow that wraps the binary with a clean, fast picker UI.
+1.  **`alfred-tm` binary** — A compiled Swift CLI that instantly scans your Time Machine backups (both external drives and local APFS snapshots) to find historical versions.
+2.  **Alfred Workflow** — A clean, fast picker UI for your Universal Actions.
 
 ## Installation
 
-### 1. Install the Alfred Workflow
+1.  **Download & Install**: Double-click `AlfredTimeMachine.alfredworkflow` to import it into Alfred.
+2.  **Full Disk Access**: Time Machine requires **Full Disk Access**. Go to `System Settings > Privacy & Security > Full Disk Access` and ensure **Alfred** is enabled.
 
-Double-click `Retro.alfredworkflow` to import it into Alfred. Alfred will ask you to confirm — click **Import**.
-
+> [!IMPORTANT]
 > **Alfred Powerpack required.** Universal Actions need Alfred's Powerpack license.
-
-### 2. (Optional) Rebuild from Source
-
-If you update `retro.swift`, rebuild and repackage with:
-
-```bash
-bash build_workflow.sh
-```
-
-This recompiles the binary and creates a fresh `Retro.alfredworkflow`.
-
----
 
 ## Usage
 
 ### Via Universal Actions (Recommended)
 
-1. In **Finder**, click any file or application to select it
-2. Press your **Alfred Universal Actions hotkey** (default: `⌥→`)
-3. Type **"retro"** or scroll to find **"Retro: Browse Time Machine Versions"**
-4. Alfred shows all backup versions with human-readable dates:
-   - **"Thu Apr 23 · 7:00 AM"** — *Yesterday · 💾 External Drive*
-   - **"Thu Apr 23 · 2:00 PM"** — *20 hours ago · 📍 Local Snapshot*
-5. Press **↩ Enter** to restore
+1.  In **Finder**, click any file or application to select it.
+2.  Press your **Alfred Universal Actions hotkey** (default: `⌥→`).
+3.  Search for **"Alfred Time Machine: Browse Versions"**.
+4.  Browse the versions found:
+    - **External Drive** — Backups from your Time Machine disk.
+    - **Local Snapshot** — Recent backups stored on your internal drive (last ~24h).
+5.  Press **↩ Enter** to restore.
 
-### Keyboard Shortcuts in the Version Picker
+### Keyboard Shortcuts
 
 | Key | Action |
-|-----|--------|
-| `↩ Enter` | Restore as `filename.restored` next to the original |
-| `⌘↩ Enter` | Restore a copy to your Desktop instead |
-
-### Via Terminal (CLI)
-
-```bash
-# List all backup versions for a file
-./retro list /Applications/Dia.app
-./retro list ~/.zshrc
-
-# List versions in Alfred JSON format
-./retro list /Applications/Dia.app --alfred
-
-# Restore: creates a (Restored) copy next to the original  
-./retro restore "/path/to/backup/source" "/Applications/Dia.app"
-
-# Restore to Desktop instead
-./retro restore "/path/to/backup/source" "/Applications/Dia.app" --desktop
-```
+| :--- | :--- |
+| `↩ Enter` | Restore as `(Restored)` next to the original |
+| `⌘↩ Enter` | Restore a copy to your Home folder instead |
 
 ---
 
-## What Gets Scanned
+## Advanced
 
-Retro checks three sources, newest first:
+### CLI Usage
 
-| Source | Path | Notes |
-|--------|------|-------|
-| External TM Drive | `/Volumes/TimeMachine/` | Hourly backups on attached drive |
-| Local Snapshots | `/Volumes/com.apple.TimeMachine.localsnapshots/` | Last ~24h, stored on your internal drive |
-| Hidden TM Volume | `/Volumes/.timemachine/` | Alternate external drive mount path |
+You can use the binary directly from your terminal:
 
----
-
-## After Restoring
-
-Retro creates a **`.restored`** copy (never overwrites your current file). Once you've verified the restored version:
-
-**For files:**
 ```bash
-# Swap the restored file into place
-mv ~/Documents/Report.pdf ~/Documents/Report.pdf.bad
-mv ~/Documents/Report.pdf.restored ~/Documents/Report.pdf
+# List all versions
+./alfred-tm list "/path/to/file"
+
+# Restore a specific version
+./alfred-tm restore "/source/backup/path" "/original/path"
 ```
 
-**For apps:**
-```bash
-# Move old version away, put restored version in its place
-mv /Applications/Dia.app /Applications/Dia.app.bad
-mv /Applications/Dia.app.restored /Applications/Dia.app
-```
+### Automatic "Damaged" App Fix
+Alfred Time Machine automatically handles Gatekeeper issues when restoring `.app` bundles. It clears quarantine flags, strips restrictive Time Machine ACLs, and performs ad-hoc signing so restored apps open immediately.
 
----
+## Building from Source
 
-## Building
-
-Requirements: macOS 12+, Xcode Command Line Tools, Alfred 5 with Powerpack
+If you modify the Swift source, rebuild the workflow with:
 
 ```bash
-# Build everything
 bash build_workflow.sh
 ```
 
-This:
-1. Compiles `retro.swift` → `retro` binary
-2. Generates a valid Alfred 5 `info.plist` using Python
-3. Packages `retro` + `info.plist` → `Retro.alfredworkflow`
-rkflow`
+Requirements: macOS 12+, Xcode Command Line Tools, Alfred 5 with Powerpack.
