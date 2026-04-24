@@ -29,7 +29,8 @@ UID_UA       = "A1B2C3D4-0001-0001-0001-000000000001"
 UID_VARS     = "A1B2C3D4-0004-0004-0004-000000000004"
 UID_FILTER   = "A1B2C3D4-0002-0002-0002-000000000002"
 UID_RESTORE  = "A1B2C3D4-0003-0003-0003-000000000003"
-UID_NOTIFY   = "A1B2C3D4-0005-0005-0005-000000000005"
+UID_NOTIFY_S = "A1B2C3D4-0005-0005-0005-000000000005"
+UID_NOTIFY_F = "A1B2C3D4-0006-0006-0006-000000000006"
 
 workflow = {
     "bundleid": "com.saihgupr.retro",
@@ -70,8 +71,14 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
                 "vitoclose": False,
             }
         ],
-        # Script Filter → Restore (Enter key)
+        # Script Filter → Start Notification AND Restore Action
         UID_FILTER: [
+            {
+                "destinationuid": UID_NOTIFY_S,
+                "modifiers": 0,
+                "modifiersubtext": "",
+                "vitoclose": True,
+            },
             {
                 "destinationuid": UID_RESTORE,
                 "modifiers": 0,
@@ -79,16 +86,17 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
                 "vitoclose": True,
             }
         ],
-        # Restore → Notification
+        # Restore → Finished Notification
         UID_RESTORE: [
             {
-                "destinationuid": UID_NOTIFY,
+                "destinationuid": UID_NOTIFY_F,
                 "modifiers": 0,
                 "modifiersubtext": "",
                 "vitoclose": False,
             }
         ],
-        UID_NOTIFY: [],
+        UID_NOTIFY_S: [],
+        UID_NOTIFY_F: [],
     },
 
     "objects": [
@@ -107,7 +115,6 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
         },
         
         # ─── 2. Args and Vars ────────────────────────────────────────────────────
-        # Save {query} to TARGET_FILE, clear {query} for the Script Filter
         {
             "type": "alfred.workflow.utility.argument",
             "uid": UID_VARS,
@@ -122,7 +129,6 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
         },
 
         # ─── 3. Script Filter ────────────────────────────────────────────────────
-        # Uses TARGET_FILE from env. Empty query allows typing to filter natively.
         {
             "type": "alfred.workflow.input.scriptfilter",
             "uid": UID_FILTER,
@@ -140,17 +146,17 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
                 "queuedelaymode": 0,
                 "queuemode": 1,
                 "runningsubtext": "Scanning Time Machine backups…",
-                "script": 'chmod +x ./retro 2>/dev/null; ./retro list "$TARGET_FILE" --alfred --debug',
+                "script": 'chmod +x ./retro 2>/dev/null; ./retro list "$TARGET_FILE" --alfred',
                 "scriptargtype": 1,
                 "scriptfile": "",
                 "subtext": "Pick a backup version to restore",
                 "title": "Time Machine Versions",
-                "type": 5,  # 5 = /bin/zsh
+                "type": 5,
                 "withspace": True,
             },
         },
 
-        # ─── 4. Run Script (Restore or open System Settings) ────────────────────
+        # ─── 4. Run Script (Restore) ─────────────────────────────────────────────
         {
             "type": "alfred.workflow.action.script",
             "uid": UID_RESTORE,
@@ -160,11 +166,9 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
                 "escaping": 0,
                 "script": (
                     "#!/bin/zsh\n"
-                    "# If arg is a URL (FDA error case), open it\n"
                     'ARG="$1"\n'
                     'if [[ "$ARG" == open* ]]; then\n'
                     '    /usr/bin/open "x-apple.systempreferences:com.apple.preference.security?Privacy_AllFiles"\n'
-                    '    echo "Opened System Settings"\n'
                     '    exit 0\n'
                     'fi\n'
                     "\n"
@@ -181,17 +185,29 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
                 ),
                 "scriptargtype": 1,
                 "scriptfile": "",
-                "type": 5,  # /bin/zsh
+                "type": 5,
             },
         },
         
-        # ─── 5. Post Notification ────────────────────────────────────────────────
+        # ─── 5. Notification: Started ───────────────────────────────────────────
         {
             "type": "alfred.workflow.output.notification",
-            "uid": UID_NOTIFY,
+            "uid": UID_NOTIFY_S,
             "version": 1,
             "config": {
-                "title": "Retro Time Machine",
+                "title": "Retro — Restoration Started",
+                "subtitle": "",
+                "text": "Fetching file from Time Machine...",
+            },
+        },
+
+        # ─── 6. Notification: Finished ──────────────────────────────────────────
+        {
+            "type": "alfred.workflow.output.notification",
+            "uid": UID_NOTIFY_F,
+            "version": 1,
+            "config": {
+                "title": "Retro — Restoration Complete",
                 "subtitle": "",
                 "text": "{query}",
             },
@@ -199,11 +215,12 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
     ],
 
     "uidata": {
-        UID_UA:      {"note": "Universal Action trigger", "xpos": 60.0,  "ypos": 100.0},
-        UID_VARS:    {"note": "Save TARGET_FILE", "xpos": 230.0, "ypos": 130.0},
-        UID_FILTER:  {"note": "Script Filter: list versions", "xpos": 340.0, "ypos": 100.0},
-        UID_RESTORE: {"note": "Run Script: restore file", "xpos": 520.0, "ypos": 100.0},
-        UID_NOTIFY:  {"note": "Post Notification", "xpos": 700.0, "ypos": 100.0},
+        UID_UA:       {"note": "Universal Action trigger", "xpos": 60.0,  "ypos": 100.0},
+        UID_VARS:     {"note": "Save TARGET_FILE", "xpos": 230.0, "ypos": 130.0},
+        UID_FILTER:   {"note": "List versions", "xpos": 340.0, "ypos": 100.0},
+        UID_RESTORE:  {"note": "Restore file", "xpos": 520.0, "ypos": 150.0},
+        UID_NOTIFY_S: {"note": "Started Notify", "xpos": 520.0, "ypos": 30.0},
+        UID_NOTIFY_F: {"note": "Finished Notify", "xpos": 700.0, "ypos": 150.0},
     },
 }
 

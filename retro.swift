@@ -155,11 +155,11 @@ func findVersions(for inputPath: String, debugLogger: ((String) -> Void)? = nil)
     // 5. Hidden localsnapshots discovery via tmutil dates (Backup to mounted ones)
     let snapOutput = runProcess("/usr/bin/tmutil", args: ["listlocalsnapshotdates", "/"])
     for line in snapOutput.components(separatedBy: .newlines) where line.contains("-") {
-        let ts = line.trimmingCharacters(in: .whitespaces)
-        if !ts.isEmpty {
+        let snapshotDate = line.trimmingCharacters(in: .whitespaces)
+        if !snapshotDate.isEmpty {
             if let computers = try? fm.contentsOfDirectory(atPath: snapRoot) {
                 for computer in computers {
-                    backupPoints.insert("\(snapRoot)/\(computer)/\(ts)")
+                    backupPoints.insert("\(snapRoot)/\(computer)/\(snapshotDate)")
                 }
             }
         }
