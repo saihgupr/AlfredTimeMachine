@@ -18,6 +18,18 @@ struct BackupVersion {
         // Fallback: just clean up the string
         return timestamp
     }
+
+    var notificationDate: String {
+        // Parse "2026-04-23-140000" into "MMMM d, h:mm a" (e.g. April 30, 2:10 PM)
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy-MM-dd-HHmmss"
+        if let date = formatter.date(from: timestamp) {
+            let display = DateFormatter()
+            display.dateFormat = "MMMM d, h:mm a"
+            return display.string(from: date)
+        }
+        return timestamp
+    }
     
     var ageDescription: String {
         let formatter = DateFormatter()
@@ -259,7 +271,9 @@ func outputAlfredJSON(versions: [BackupVersion], originalPath: String) {
             "valid": true,
             "variables": [
                 "SOURCE_PATH": v.sourcePath,
-                "DEST_PATH": originalPath
+                "DEST_PATH": originalPath,
+                "FILE_NAME": URL(fileURLWithPath: originalPath).lastPathComponent,
+                "VERSION_DATE": v.notificationDate
             ],
             "icon": ["type": "fileicon", "path": originalPath],
             "mods": [
@@ -315,7 +329,7 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
                 // Fallback to standard cp -R
                 let task2 = Process()
                 task2.executableURL = URL(fileURLWithPath: "/bin/cp")
-                task2.arguments = ["-R", sourcePath, finalDest]
+                task2.arguments = ["-a", sourcePath, finalDest]
                 try? task2.run()
                 task2.waitUntilExit()
                 
@@ -336,9 +350,25 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
     let homeDest = FileManager.default.homeDirectoryForCurrentUser.appendingPathComponent(restoredName).path
     let originalDest = destURL.deletingLastPathComponent().appendingPathComponent(restoredName).path
     
+    func finalizeRestore(at path: String) {
+        // 1. Remove ACLs that might block attribute modifications
+        _ = runProcess("/bin/chmod", args: ["-R", "-N", path])
+        // 2. Remove immutable flags
+        _ = runProcess("/usr/bin/chflags", args: ["-R", "nouchg", path])
+        // 3. Ensure user has read/write permissions to modify attributes
+        _ = runProcess("/bin/chmod", args: ["-R", "u+rw", path])
+        // 4. Remove all extended attributes (including quarantine)
+        _ = runProcess("/usr/bin/xattr", args: ["-rc", path])
+        // 5. Ad-hoc sign if it's an app bundle to fix any broken signatures from copying
+        if path.hasSuffix(".app") {
+            _ = runProcess("/usr/bin/codesign", args: ["--force", "--deep", "--sign", "-", path])
+        }
+    }
+
     if toHome {
         do {
             try attemptCopy(to: homeDest)
+            finalizeRestore(at: homeDest)
             print("Successfully restored to Home folder as \(restoredName)")
         } catch {
             print("❌ Restore failed: \(error.localizedDescription)")
@@ -348,11 +378,13 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
         do {
             // Try original location first
             try attemptCopy(to: originalDest)
+            finalizeRestore(at: originalDest)
             print("Successfully restored to \(URL(fileURLWithPath: originalDest).lastPathComponent)")
         } catch {
             // Fallback to home folder if permission denied or other error
             do {
                 try attemptCopy(to: homeDest)
+                finalizeRestore(at: homeDest)
                 print("Restored to Home folder (original folder is read-only or permission denied)")
             } catch let fallbackError {
                 print("❌ Restore failed entirely: \(fallbackError.localizedDescription)")

@@ -203,9 +203,8 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
             "uid": UID_NOTIFY_S,
             "version": 1,
             "config": {
-                "title": "Retro — Restoration Started",
-                "subtitle": "",
-                "text": "Fetching file from Time Machine...",
+                "title": "Alfred Time Machine",
+                "text": "⏳ Restoring {var:FILE_NAME}...\n{var:VERSION_DATE}",
             },
         },
 
@@ -215,9 +214,8 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
             "uid": UID_NOTIFY_F,
             "version": 1,
             "config": {
-                "title": "Retro — Restoration Complete",
-                "subtitle": "",
-                "text": "{query}",
+                "title": "Alfred Time Machine",
+                "text": "✓ {var:FILE_NAME} Finished Restoring!",
             },
         },
 
