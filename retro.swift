@@ -327,6 +327,15 @@ func outputAlfredJSON(versions: [BackupVersion], originalPath: String) {
 func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
     let fm = FileManager.default
     
+    // Safety Guard: Prevent restoring top-level system folders by accident
+    let forbiddenPaths = ["/Applications", "/Library", "/System", "/Users", "/Volumes", "/bin", "/sbin", "/usr", "/etc", "/var"]
+    let standardizedDest = URL(fileURLWithPath: destPath).standardized.path
+    if forbiddenPaths.contains(standardizedDest) {
+        print("Error: For safety, you cannot restore a root-level system folder (\(standardizedDest)).")
+        print("Please select a specific file or application inside the folder instead.")
+        exit(1)
+    }
+
     // Helper to perform the copy
     func attemptCopy(to finalDest: String) throws {
         if fm.fileExists(atPath: finalDest) {

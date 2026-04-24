@@ -205,7 +205,7 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
             "version": 1,
             "config": {
                 "title": "Alfred Time Machine",
-                "text": "Restoring {var:FILE_NAME}...\n{var:VERSION_DATE}",
+                "text": "Restoring {var:FILE_NAME}\n{var:VERSION_DATE}",
             },
         },
 
