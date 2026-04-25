@@ -69,17 +69,20 @@ func runProcess(_ exec: String, args: [String]) -> String {
 // Returns true if we can read Time Machine paths (proxy for FDA).
 func hasFullDiskAccess() -> Bool {
     let fm = FileManager.default
+    
+    // Try listing a restricted directory.
     let testPaths = [
         "/Volumes/com.apple.TimeMachine.localsnapshots",
         "/Volumes/TimeMachine",
         "/Volumes/.timemachine"
     ]
+    
     for path in testPaths {
-        // fileExists can be true even without FDA, but contentsOfDirectory requires it
         if (try? fm.contentsOfDirectory(atPath: path)) != nil {
             return true
         }
     }
+    
     return false
 }
 
@@ -206,11 +209,16 @@ func findVersions(for inputPath: String, debugLogger: ((String) -> Void)? = nil)
 
     // --- Search phase ---
     
+    var checkCount = 0
     func checkCandidate(_ path: String, ts: String) -> Bool {
-        // Only log first 5 candidates to avoid log bloat, or log if found
+        checkCount += 1
+        if checkCount <= 10 {
+            log("CHECKING (\(checkCount)): \(path)")
+        }
+        
         var isDir: ObjCBool = false
         if fm.fileExists(atPath: path, isDirectory: &isDir) {
-            log("FOUND: \(path)")
+            log("FOUND MATCH: \(path)")
             var isReal = true
             if !isDir.boolValue {
                 if let attr = try? fm.attributesOfItem(atPath: path), let size = attr[.size] as? NSNumber, size.intValue == 0 {
@@ -236,12 +244,17 @@ func findVersions(for inputPath: String, debugLogger: ((String) -> Void)? = nil)
                 let volumePath = "\(point)/\(volumeRoot)"
                 if checkCandidate("\(volumePath)/Data\(targetPath)", ts: ts) { continue }
                 if checkCandidate("\(volumePath)\(targetPath)", ts: ts) { continue }
+                // Modern TM structure fallback
+                if targetPath.hasPrefix("/Applications") {
+                    if checkCandidate("\(volumePath)/System/Volumes/Data\(targetPath)", ts: ts) { continue }
+                }
             }
         }
         
-        // 2. Check point itself (Direct mounts)
+        // 2. Check point itself (Direct mounts or flattened structures)
         if checkCandidate("\(point)/Data\(targetPath)", ts: ts) { continue }
         if checkCandidate("\(point)\(targetPath)", ts: ts) { continue }
+        if checkCandidate("\(point)/System/Volumes/Data\(targetPath)", ts: ts) { continue }
         
         // 3. Nested .backup (Network backups)
         let nestedBackup = "\(point)/\(ts).backup"
