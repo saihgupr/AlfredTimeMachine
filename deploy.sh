@@ -33,8 +33,6 @@ UID_RESTORE  = "A1B2C3D4-0003-0003-0003-000000000003"
 UID_NOTIFY_S = "A1B2C3D4-0005-0005-0005-000000000005"
 UID_NOTIFY_F = "A1B2C3D4-0006-0006-0006-000000000006"
 UID_HIDE     = "A1B2C3D4-0007-0007-0007-000000000007"
-UID_SEARCH   = "A1B2C3D4-0008-0008-0008-000000000008"
-UID_SEARCH_V = "A1B2C3D4-0009-0009-0009-000000000009"
 
 workflow = {
     "bundleid": "com.saihgupr.alfred-time-machine",
@@ -108,24 +106,6 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
         UID_NOTIFY_S: [],
         UID_NOTIFY_F: [],
         UID_HIDE: [],
-        # Keyword Search → Set Vars
-        UID_SEARCH: [
-            {
-                "destinationuid": UID_SEARCH_V,
-                "modifiers": 0,
-                "modifiersubtext": "",
-                "vitoclose": False,
-            }
-        ],
-        # Set Vars → List Versions
-        UID_SEARCH_V: [
-            {
-                "destinationuid": UID_FILTER,
-                "modifiers": 0,
-                "modifiersubtext": "",
-                "vitoclose": False,
-            }
-        ],
     },
 
     "objects": [
@@ -248,47 +228,6 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
             "config": {},
         },
 
-        # ─── 8. Script Filter (Search Local) ─────────────────────────────────────
-        {
-            "type": "alfred.workflow.input.scriptfilter",
-            "uid": UID_SEARCH,
-            "version": 3,
-            "config": {
-                "alfredfiltersresults": False,
-                "alfredfiltersresultsmatchmode": 0,
-                "argumenttreatemptyqueryasnil": True,
-                "argumenttrimmode": 0,
-                "argumenttype": 1,
-                "escaping": 102,
-                "keyword": "atm",
-                "queuedelaycustom": 3,
-                "queuedelayimmediatelyinitially": True,
-                "queuedelaymode": 0,
-                "queuemode": 1,
-                "runningsubtext": "Searching local files…",
-                "script": 'chmod +x ./alfred-tm 2>/dev/null; ./alfred-tm search-local "$1"',
-                "scriptargtype": 1,
-                "scriptfile": "",
-                "subtext": "Type a file name to find versions for…",
-                "title": "Alfred Time Machine",
-                "type": 5,
-                "withspace": False,
-            },
-        },
-
-        # ─── 9. Args and Vars (Search selection) ──────────────────────────────────
-        {
-            "type": "alfred.workflow.utility.argument",
-            "uid": UID_SEARCH_V,
-            "version": 1,
-            "config": {
-                "argument": "",
-                "passthroughargument": False,
-                "variables": {
-                    "TARGET_FILE": "{query}",
-                }
-            },
-        },
     ],
 
     "uidata": {
@@ -298,8 +237,6 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
         UID_RESTORE:  {"note": "Restore file", "xpos": 520.0, "ypos": 150.0},
         UID_NOTIFY_S: {"note": "Started Notify", "xpos": 520.0, "ypos": 30.0},
         UID_NOTIFY_F: {"note": "Finished Notify", "xpos": 700.0, "ypos": 150.0},
-        UID_SEARCH:   {"note": "Keyword Search", "xpos": 60.0,  "ypos": 300.0},
-        UID_SEARCH_V: {"note": "Set Selection", "xpos": 230.0, "ypos": 330.0},
     },
 }
 

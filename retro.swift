@@ -446,84 +446,11 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
     }
 }
 
-// MARK: - Search Local
-func searchLocal(query: String) {
-    let fm = FileManager.default
-    var items: [[String: Any]] = []
-    let trimmedQuery = query.trimmingCharacters(in: .whitespaces)
-    
-    if trimmedQuery.count < 3 {
-        // Show common applications by default for short queries
-        let appPaths = [
-            "/Applications",
-            fm.homeDirectoryForCurrentUser.appendingPathComponent("Applications").path
-        ]
-        
-        for appDir in appPaths {
-            if let apps = try? fm.contentsOfDirectory(atPath: appDir) {
-                let sortedApps = apps.filter { $0.hasSuffix(".app") && !$0.hasPrefix(".") }.sorted()
-                // Limit to 25 apps for performance
-                for app in sortedApps.prefix(25) {
-                    let path = "\(appDir)/\(app)"
-                    let title = app.replacingOccurrences(of: ".app", with: "")
-                    
-                    // If there is a short query (1-2 chars), do a simple local filter
-                    if trimmedQuery.isEmpty || title.lowercased().contains(trimmedQuery.lowercased()) {
-                        items.append([
-                            "title": title,
-                            "subtitle": appDir,
-                            "arg": path,
-                            "type": "file",
-                            "icon": ["type": "fileicon", "path": path],
-                            "valid": true
-                        ])
-                    }
-                }
-            }
-        }
-    } else {
-        // Use mdfind to find files matching the name
-        let mdfindOutput = runProcess("/usr/bin/mdfind", args: [
-            "kMDItemDisplayName == '*\(trimmedQuery)*'cd && (kMDItemContentType != 'com.apple.mail.emlx') && (kMDItemContentType != 'public.email-message')"
-        ])
-        
-        let paths = mdfindOutput.components(separatedBy: .newlines).filter { !$0.isEmpty }.prefix(30)
-        for path in paths {
-            let url = URL(fileURLWithPath: path)
-            let name = url.lastPathComponent
-            let parent = url.deletingLastPathComponent().path.replacingOccurrences(of: fm.homeDirectoryForCurrentUser.path, with: "~")
-            
-            items.append([
-                "title": name,
-                "subtitle": parent,
-                "arg": path,
-                "type": "file",
-                "icon": ["type": "fileicon", "path": path],
-                "valid": true
-            ])
-        }
-    }
-    
-    if items.isEmpty {
-        items.append([
-            "title": trimmedQuery.isEmpty ? "No applications found" : "No local files found matching '\(trimmedQuery)'",
-            "subtitle": "Try a different search term",
-            "valid": false
-        ])
-    }
-    
-    let output: [String: Any] = ["items": items]
-    if let data = try? JSONSerialization.data(withJSONObject: output),
-       let str = String(data: data, encoding: .utf8) {
-        print(str)
-    }
-}
 
 // MARK: - Main CLI Dispatch
 let args = CommandLine.arguments
 guard args.count > 1 else {
     print("Usage: alfred-tm list <path> [--alfred]")
-    print("       alfred-tm search-local <query>")
     print("       alfred-tm restore <source_path> <dest_path> [--home]")
     exit(1)
 }
@@ -569,9 +496,6 @@ case "restore":
     let toHome = args.contains("--home")
     restore(sourcePath: sourcePath, destPath: destPath, toHome: toHome)
 
-case "search-local":
-    let query = args.indices.contains(2) ? args[2] : ""
-    searchLocal(query: query)
 
 default:
     fputs("Unknown command: \(args[1])\n", stderr)
