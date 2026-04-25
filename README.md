@@ -27,7 +27,7 @@
 
 1.  In **Finder**, click any file or application to select it.
 2.  Press your **Alfred Universal Actions hotkey** (default: `⌥→`).
-3.  Search for **"Alfred Time Machine: Browse Versions"**.
+3.  Search for **"Alfred Time Machine"**.
 4.  Browse the versions found:
     - **External Drive** — Backups from your Time Machine disk.
     - **Local Snapshot** — Recent backups stored on your internal drive (last ~24h).

@@ -47,7 +47,7 @@ workflow = {
     "webaddress": "",
     "readme": """## Alfred Time Machine
 
-Select any file or application in Finder or Alfred, press your Universal Actions hotkey, and choose **"Alfred Time Machine: Browse Versions"**.
+Select any file or application in Finder or Alfred, press your Universal Actions hotkey, and choose **"Alfred Time Machine"**.
 
 You'll see a list of all available backup versions with human-readable dates.
 
@@ -139,7 +139,7 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
                 "acceptstext": False,
                 "acceptsurls": False,
                 "acceptsmulti": 0,
-                "name": "Alfred Time Machine: Browse Versions",
+                "name": "Alfred Time Machine",
             },
         },
         
@@ -330,7 +330,7 @@ echo ""
 echo "Usage:"
 echo "  1. In Finder, click any file or app"
 echo "  2. Press your Alfred Universal Actions hotkey"  
-echo "  3. Select 'Alfred Time Machine: Browse Versions'"
+echo "  3. Select 'Alfred Time Machine'"
 echo "  4. Choose a date and press Enter to restore"
 
 # Automatically open and install in Alfred
