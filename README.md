@@ -79,10 +79,3 @@ Alfred Time Machine automatically handles Gatekeeper issues when restoring `.app
 If you run into a bug, have an idea for a feature, or want to ask a question, feel free to open an [issue](https://github.com/saihgupr/AlfredTimeMachine/issues/new/choose). Pull requests are also warmly welcome!
 
 If **Alfred Time Machine** saves you time, consider leaving a ⭐ **star** on GitHub or supporting development on [Ko-fi ☕️](https://ko-fi.com/saihgupr).
-
----
-
-## License
-
-Distributed under the [MIT License](LICENSE).
-
