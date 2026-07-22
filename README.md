@@ -81,3 +81,26 @@ bash build_workflow.sh
 ```
 
 Requirements: macOS 12+, Xcode Command Line Tools, Alfred 5 with Powerpack.
+
+---
+
+## Contributing & Community
+
+Contributions, feedback, and feature ideas are always welcome!
+
+- **Found a Bug?** Open an [Issue](https://github.com/saihgupr/AlfredTimeMachine/issues/new?template=bug_report.md) with details on how to reproduce it.
+- **Have an Idea?** Submit a [Feature Request](https://github.com/saihgupr/AlfredTimeMachine/issues/new?template=feature_request.md) or start a discussion.
+- **Want to Contribute?** Pull requests are welcome! Feel free to fork the repository and submit a PR.
+
+## Support & Feedback
+
+If **Alfred Time Machine** saves you time:
+- Give the project a **Star ⭐️** on GitHub to help others find it!
+- Consider supporting development on [Ko-fi ☕️](https://ko-fi.com/saihgupr).
+
+---
+
+## License
+
+Distributed under the [MIT License](LICENSE).
+
