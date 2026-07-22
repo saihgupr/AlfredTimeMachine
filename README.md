@@ -23,6 +23,12 @@
 
 ## Usage
 
+<p align="center">
+  <img src="images/universal_action.png" width="400" alt="Universal Action Trigger">
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="images/version_list.png" width="400" alt="Time Machine Version Selection">
+</p>
+
 ### Via Universal Actions (Recommended)
 
 1.  In **Finder**, click any file or application to select it.
