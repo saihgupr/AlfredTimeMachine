@@ -415,40 +415,6 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
         if path.hasSuffix(".app") {
             _ = runProcess("/usr/bin/codesign", args: ["--force", "--deep", "--sign", "-", path])
         }
-        // 6. Reveal restored file in Finder (re-using open Finder window if present)
-        let resolvedPath  = URL(fileURLWithPath: path).resolvingSymlinksInPath().path
-        let parentPath    = URL(fileURLWithPath: resolvedPath).deletingLastPathComponent().path
-
-        // Write the script to a temp file to avoid -e quoting/escaping issues
-        let scriptContent = """
-tell application "Finder"
-    set filePosix to "\(resolvedPath)"
-    set folderPosix to "\(parentPath)"
-    set foundWindow to false
-    repeat with w in (get Finder windows)
-        try
-            set wPath to POSIX path of (target of w as alias)
-            if wPath ends with "/" and (count of wPath) > 1 then
-                set wPath to text 1 thru -2 of wPath
-            end if
-            if wPath is equal to folderPosix then
-                set index of w to 1
-                select (POSIX file filePosix as alias)
-                set foundWindow to true
-                exit repeat
-            end if
-        end try
-    end repeat
-    if not foundWindow then
-        reveal (POSIX file filePosix as alias)
-    end if
-    activate
-end tell
-"""
-        let tmpScript = "/tmp/alfred-tm-reveal-\(UUID().uuidString).scpt"
-        try? scriptContent.write(toFile: tmpScript, atomically: true, encoding: .utf8)
-        _ = runProcess("/usr/bin/osascript", args: [tmpScript])
-        try? FileManager.default.removeItem(atPath: tmpScript)
     }
 
     if toHome {
