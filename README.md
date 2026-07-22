@@ -1,10 +1,12 @@
-# Alfred Time Machine
+# Alfred Time Machine <img src="icon.png" width="64" align="right" />
 
-> Instant file & app restoration from Time Machine backups, right from Alfred. No slow UI, no spinning stars.
+Instant file & app restoration from Time Machine backups, right from Alfred. No slow UI, no spinning stars.
 
-<p align="center">
-  <img src="icon.png" width="128" height="128" alt="Alfred Time Machine Icon">
-</p>
+<div align="center">
+  <img src="images/universal_action.png" width="400" alt="Universal Action Trigger">
+  &nbsp;&nbsp;&nbsp;&nbsp;
+  <img src="images/version_list.png" width="400" alt="Time Machine Version Selection">
+</div>
 
 ## How it Works
 
@@ -22,12 +24,6 @@
 > **Alfred Powerpack required.** Universal Actions need Alfred's Powerpack license.
 
 ## Usage
-
-<p align="center">
-  <img src="images/universal_action.png" width="400" alt="Universal Action Trigger">
-  &nbsp;&nbsp;&nbsp;&nbsp;
-  <img src="images/version_list.png" width="400" alt="Time Machine Version Selection">
-</p>
 
 ### Via Universal Actions (Recommended)
 
