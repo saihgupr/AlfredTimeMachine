@@ -74,19 +74,11 @@ Alfred Time Machine automatically handles Gatekeeper issues when restoring `.app
 
 ---
 
-## Contributing & Community
+## Contributing & Support
 
-Contributions, feedback, and feature ideas are always welcome!
+If you run into a bug, have an idea for a feature, or want to ask a question, feel free to open an [issue](https://github.com/saihgupr/AlfredTimeMachine/issues/new/choose). Pull requests are also warmly welcome!
 
-- **Found a Bug?** Open an [Issue](https://github.com/saihgupr/AlfredTimeMachine/issues/new?template=bug_report.md) with details on how to reproduce it.
-- **Have an Idea?** Submit a [Feature Request](https://github.com/saihgupr/AlfredTimeMachine/issues/new?template=feature_request.md) or start a discussion.
-- **Want to Contribute?** Pull requests are welcome! Feel free to fork the repository and submit a PR.
-
-## Support & Feedback
-
-If **Alfred Time Machine** saves you time:
-- Give the project a **Star ⭐️** on GitHub to help others find it!
-- Consider supporting development on [Ko-fi ☕️](https://ko-fi.com/saihgupr).
+If **Alfred Time Machine** saves you time, consider leaving a ⭐ **star** on GitHub or supporting development on [Ko-fi ☕️](https://ko-fi.com/saihgupr).
 
 ---
 
