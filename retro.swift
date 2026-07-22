@@ -415,8 +415,29 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
         if path.hasSuffix(".app") {
             _ = runProcess("/usr/bin/codesign", args: ["--force", "--deep", "--sign", "-", path])
         }
-        // 6. Reveal restored file in Finder
-        _ = runProcess("/usr/bin/open", args: ["-R", path])
+        // 6. Reveal restored file in Finder (re-using open Finder window if present)
+        let script = """
+        tell application "Finder"
+            set targetItem to (POSIX file "\(path)") as alias
+            set parentFolder to container of targetItem
+            set foundWindow to false
+            repeat with w in (get Finder windows)
+                try
+                    if (target of w as alias) is (parentFolder as alias) then
+                        select targetItem
+                        set index of w to 1
+                        set foundWindow to true
+                        exit repeat
+                    end if
+                end try
+            end repeat
+            if not foundWindow then
+                reveal targetItem
+            end if
+            activate
+        end tell
+        """
+        _ = runProcess("/usr/bin/osascript", args: ["-e", script])
     }
 
     if toHome {
