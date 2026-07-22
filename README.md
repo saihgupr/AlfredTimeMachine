@@ -72,16 +72,6 @@ You can use the binary directly from your terminal:
 ### Automatic "Damaged" App Fix
 Alfred Time Machine automatically handles Gatekeeper issues when restoring `.app` bundles. It clears quarantine flags, strips restrictive Time Machine ACLs, and performs ad-hoc signing so restored apps open immediately.
 
-## Building from Source
-
-If you modify the Swift source, rebuild the workflow with:
-
-```bash
-bash build_workflow.sh
-```
-
-Requirements: macOS 12+, Xcode Command Line Tools, Alfred 5 with Powerpack.
-
 ---
 
 ## Contributing & Community
