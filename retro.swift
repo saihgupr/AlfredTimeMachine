@@ -415,6 +415,8 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
         if path.hasSuffix(".app") {
             _ = runProcess("/usr/bin/codesign", args: ["--force", "--deep", "--sign", "-", path])
         }
+        // 6. Reveal restored file in Finder
+        _ = runProcess("/usr/bin/open", args: ["-R", path])
     }
 
     if toHome {
