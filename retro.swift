@@ -416,23 +416,31 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
             _ = runProcess("/usr/bin/codesign", args: ["--force", "--deep", "--sign", "-", path])
         }
         // 6. Reveal restored file in Finder (re-using open Finder window if present)
+        let resolvedURL = URL(fileURLWithPath: path).resolvingSymlinksInPath()
+        let targetPosix = resolvedURL.path.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+        let parentPosix = resolvedURL.deletingLastPathComponent().path.replacingOccurrences(of: "\\", with: "\\\\").replacingOccurrences(of: "\"", with: "\\\"")
+
         let script = """
         tell application "Finder"
-            set targetItem to (POSIX file "\(path)") as alias
-            set parentFolder to container of targetItem
+            set targetPosix to "\(targetPosix)"
+            set parentPosix to "\(parentPosix)"
             set foundWindow to false
             repeat with w in (get Finder windows)
                 try
-                    if (target of w as alias) is (parentFolder as alias) then
-                        select targetItem
+                    set wPath to POSIX path of (target of w as alias)
+                    if wPath ends with "/" and length of wPath > 1 then
+                        set wPath to text 1 thru -2 of wPath
+                    end if
+                    if wPath is equal to parentPosix then
                         set index of w to 1
+                        select (POSIX file targetPosix as alias)
                         set foundWindow to true
                         exit repeat
                     end if
                 end try
             end repeat
             if not foundWindow then
-                reveal targetItem
+                reveal (POSIX file targetPosix as alias)
             end if
             activate
         end tell
