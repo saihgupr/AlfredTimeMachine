@@ -130,7 +130,7 @@ func findVersions(for inputPath: String, debugLogger: ((String) -> Void)? = nil)
         }
         debugLogger?(msg)
     }
-    log("--- alfred-tm v1.1.5 DEBUG ---")
+    log("--- alfred-tm v1.2.0 DEBUG ---")
     log("FDA Status: \(hasFullDiskAccess())")
     log("Finding versions for: \(inputPath)")
     log("Resolved target path: \(targetPath)")
@@ -370,7 +370,24 @@ func outputAlfredJSON(versions: [BackupVersion], originalPath: String) {
                 "cmd": [
                     "subtitle": "⌘ Restore to Home folder instead",
                     "valid": true,
-                    "variables": ["RESTORE_TO_HOME": "1"]
+                    "variables": [
+                        "SOURCE_PATH": v.sourcePath,
+                        "DEST_PATH": originalPath,
+                        "FILE_NAME": URL(fileURLWithPath: originalPath).lastPathComponent,
+                        "VERSION_DATE": v.notificationDate,
+                        "RESTORE_TO_HOME": "1"
+                    ]
+                ],
+                "alt": [
+                    "subtitle": "⌥ Replace original with this version",
+                    "valid": true,
+                    "variables": [
+                        "SOURCE_PATH": v.sourcePath,
+                        "DEST_PATH": originalPath,
+                        "FILE_NAME": URL(fileURLWithPath: originalPath).lastPathComponent,
+                        "VERSION_DATE": v.notificationDate,
+                        "REPLACE_ORIGINAL": "1"
+                    ]
                 ]
             ]
         ])
@@ -384,7 +401,7 @@ func outputAlfredJSON(versions: [BackupVersion], originalPath: String) {
 }
 
 // MARK: - Restore
-func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
+func restore(sourcePath: String, destPath: String, toHome: Bool = false, replaceOriginal: Bool = false) {
     let fm = FileManager.default
 
     // Best-effort restore logging (failures were previously invisible).
@@ -403,7 +420,7 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
             }
         }
     }
-    logRestore("restore source=\(sourcePath) dest=\(destPath) toHome=\(toHome)")
+    logRestore("restore source=\(sourcePath) dest=\(destPath) toHome=\(toHome) replaceOriginal=\(replaceOriginal)")
 
     // Pre-check FDA before attempting copy: without it the copy fails with
     // "Operation not permitted" and the failure looked like success downstream.
@@ -492,6 +509,20 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
         }
     }
 
+    if replaceOriginal {
+        do {
+            try attemptCopy(to: destPath)
+            finalizeRestore(at: destPath)
+            print("Replaced \(destURL.lastPathComponent) with backup version")
+            logRestore("SUCCESS replace dest=\(destPath) source=\(sourcePath)")
+        } catch {
+            print("Restore failed: \(error.localizedDescription)")
+            logRestore("FAIL replace error=\(error.localizedDescription) source=\(sourcePath) dest=\(destPath)")
+            exit(1)
+        }
+        return
+    }
+
     if toHome {
         do {
             try attemptCopy(to: homeDest)
@@ -531,7 +562,7 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
 let args = CommandLine.arguments
 guard args.count > 1 else {
     print("Usage: alfred-tm list <path> [--alfred]")
-    print("       alfred-tm restore <source_path> <dest_path> [--home]")
+    print("       alfred-tm restore <source_path> <dest_path> [--home | --replace]")
     exit(1)
 }
 
@@ -574,7 +605,8 @@ case "restore":
     let sourcePath = args[2]
     let destPath = args[3]
     let toHome = args.contains("--home")
-    restore(sourcePath: sourcePath, destPath: destPath, toHome: toHome)
+    let replaceOriginal = args.contains("--replace")
+    restore(sourcePath: sourcePath, destPath: destPath, toHome: toHome, replaceOriginal: replaceOriginal)
 
 
 default:

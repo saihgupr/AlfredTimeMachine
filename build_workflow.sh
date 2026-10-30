@@ -41,7 +41,7 @@ workflow = {
     "description": "Browse and restore files from Time Machine backups — no slow UI required.",
     "disabled": False,
     "name": "Alfred Time Machine",
-    "version": "1.1.5",
+    "version": "1.2.0",
     "webaddress": "",
     "readme": """## Alfred Time Machine
 
@@ -50,7 +50,8 @@ Select any file or application in Finder or Alfred, press your Universal Actions
 You'll see a list of all available backup versions with human-readable dates.
 
 **↩ Enter** — Restores a `(Restored)` copy next to the original  
-**⌘↩ Enter** — Restores a copy to your Home folder instead
+**⌘↩ Enter** — Restores a copy to your Home folder instead  
+**⌥↩ Enter** — Replaces the original in place with this version
 
 Once happy, rename/replace the original with the `(Restored)` copy.""",
 
@@ -182,11 +183,19 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
                     'fi\n'
                     "\n"
                     'chmod +x ./alfred-tm 2>/dev/null\n'
-                    'SOURCE="$SOURCE_PATH"\n'
+                    'SOURCE="${SOURCE_PATH:-$1}"\n'
                     'DEST="$DEST_PATH"\n'
                     'DESKTOP="$RESTORE_TO_HOME"\n'
+                    'REPLACE="$REPLACE_ORIGINAL"\n'
                     "\n"
-                    'if [[ "$DESKTOP" == "1" ]]; then\n'
+                    'if [[ -z "$SOURCE" || -z "$DEST" ]]; then\n'
+                    '    echo "Restore failed: missing file reference (empty source or destination). Please re-run and report this bug."\n'
+                    '    exit 0\n'
+                    "fi\n"
+                    "\n"
+                    'if [[ "$REPLACE" == "1" ]]; then\n'
+                    '    ./alfred-tm restore "$SOURCE" "$DEST" --replace 2>&1 || true\n'
+                    'elif [[ "$DESKTOP" == "1" ]]; then\n'
                     '    ./alfred-tm restore "$SOURCE" "$DEST" --home 2>&1 || true\n'
                     "else\n"
                     '    ./alfred-tm restore "$SOURCE" "$DEST" 2>&1 || true\n'

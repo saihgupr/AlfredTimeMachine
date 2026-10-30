@@ -19,7 +19,7 @@ Instant file & app restoration from Time Machine backups, right from Alfred. No 
 
 ### Option 1: Download from Releases (Recommended)
 
-1. Download the latest [`AlfredTimeMachine.alfredworkflow`](https://github.com/saihgupr/AlfredTimeMachine/releases/download/v1.1.0/AlfredTimeMachine.alfredworkflow) from [Releases](https://github.com/saihgupr/AlfredTimeMachine/releases/latest).
+1. Download the latest [`AlfredTimeMachine.alfredworkflow`](https://github.com/saihgupr/AlfredTimeMachine/releases/download/v1.2.0/AlfredTimeMachine.alfredworkflow) from [Releases](https://github.com/saihgupr/AlfredTimeMachine/releases/latest).
 2. Double-click `AlfredTimeMachine.alfredworkflow` to import it into Alfred.
 3. **Full Disk Access**: Time Machine requires **Full Disk Access**. Go to `System Settings > Privacy & Security > Full Disk Access` and ensure **Alfred** is enabled.
 
@@ -52,6 +52,7 @@ bash deploy.sh
 | :--- | :--- |
 | `↩ Enter` | Restore as `(Restored)` next to the original |
 | `⌘↩ Enter` | Restore a copy to your Home folder instead |
+| `⌥↩ Enter` | Replace original in place with this version |
 
 ---
 
