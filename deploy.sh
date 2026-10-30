@@ -41,7 +41,7 @@ workflow = {
     "description": "Browse and restore files from Time Machine backups — no slow UI required.",
     "disabled": False,
     "name": "Alfred Time Machine",
-    "version": "1.1.0",
+    "version": "1.1.5",
     "webaddress": "",
     "readme": """## Alfred Time Machine
 
@@ -187,10 +187,11 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
                     'DESKTOP="$RESTORE_TO_HOME"\n'
                     "\n"
                     'if [[ "$DESKTOP" == "1" ]]; then\n'
-                    '    ./alfred-tm restore "$SOURCE" "$DEST" --home\n'
+                    '    ./alfred-tm restore "$SOURCE" "$DEST" --home 2>&1 || true\n'
                     "else\n"
-                    '    ./alfred-tm restore "$SOURCE" "$DEST"\n'
+                    '    ./alfred-tm restore "$SOURCE" "$DEST" 2>&1 || true\n'
                     "fi\n"
+                    'exit 0\n'
                 ),
                 "scriptargtype": 1,
                 "scriptfile": "",
@@ -216,7 +217,7 @@ Once happy, rename/replace the original with the `(Restored)` copy.""",
             "version": 1,
             "config": {
                 "title": "Alfred Time Machine",
-                "text": "{var:FILE_NAME} Finished Restoring!",
+                "text": "{query}",
             },
         },
 

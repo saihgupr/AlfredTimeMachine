@@ -58,7 +58,7 @@ func runProcess(_ exec: String, args: [String]) -> String {
     task.arguments = args
     let pipe = Pipe()
     task.standardOutput = pipe
-    task.standardError = Pipe() // discard stderr
+    task.standardError = pipe // merge stderr so FDA errors ("requires Full Disk Access") are visible in output
     try? task.run()
     task.waitUntilExit()
     let data = pipe.fileHandleForReading.readDataToEndOfFile()
@@ -67,22 +67,27 @@ func runProcess(_ exec: String, args: [String]) -> String {
 
 // MARK: - Full Disk Access Check
 // Returns true if we can read Time Machine paths (proxy for FDA).
+// NOTE (macOS 27 Golden Gate): top-level `ls /Volumes/.timemachine` succeeds
+// WITHOUT FDA and must NOT be treated as proof of FDA (false positive).
 func hasFullDiskAccess() -> Bool {
     let fm = FileManager.default
-    
-    // Try listing a restricted directory.
-    let testPaths = [
-        "/Volumes/com.apple.TimeMachine.localsnapshots",
-        "/Volumes/TimeMachine",
-        "/Volumes/.timemachine"
-    ]
-    
-    for path in testPaths {
-        if (try? fm.contentsOfDirectory(atPath: path)) != nil {
-            return true
-        }
+
+    // Real check 1: listing /Volumes/TimeMachine requires FDA.
+    if (try? fm.contentsOfDirectory(atPath: "/Volumes/TimeMachine")) != nil {
+        return true
     }
-    
+
+    // Real check 2: `tmutil listbackups` prints "requires Full Disk Access" without FDA.
+    // runProcess merges stderr, so the message is visible here either way.
+    let out = runProcess("/usr/bin/tmutil", args: ["listbackups"])
+    if out.range(of: "requires Full Disk Access", options: .caseInsensitive) != nil {
+        return false
+    }
+    // Non-empty output means tmutil actually listed backups -> FDA granted.
+    if !out.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+        return true
+    }
+
     return false
 }
 
@@ -125,10 +130,36 @@ func findVersions(for inputPath: String, debugLogger: ((String) -> Void)? = nil)
         }
         debugLogger?(msg)
     }
-    log("--- alfred-tm v1.1.2 DEBUG ---")
+    log("--- alfred-tm v1.1.5 DEBUG ---")
     log("FDA Status: \(hasFullDiskAccess())")
     log("Finding versions for: \(inputPath)")
     log("Resolved target path: \(targetPath)")
+
+    // 0. Mount-table discovery (works WITH and WITHOUT FDA on macOS 27).
+    // `mount` still lists every backup even without FDA, e.g.:
+    //   com.apple.TimeMachine.<ts>.backup@... on /Volumes/.timemachine/<UUID>/<ts>.backup (...)
+    //   com.apple.TimeMachine.<ts>.local@... on /Volumes/com.apple.TimeMachine.localsnapshots/.../<ts>/Data (...)
+    let mountOutput = runProcess("/sbin/mount", args: [])
+    var mountAdded = 0
+    for line in mountOutput.components(separatedBy: .newlines) {
+        guard line.contains("com.apple.TimeMachine.") else { continue }
+        // Format: <fs> on <mountpoint> (<opts>)
+        guard let onRange = line.range(of: " on "),
+              let parenRange = line.range(of: " (", options: .backwards) else { continue }
+        let mp = String(line[onRange.upperBound..<parenRange.lowerBound]).trimmingCharacters(in: .whitespaces)
+        guard !mp.isEmpty else { continue }
+        if mp.hasSuffix("/Data") {
+            // .local snapshot mount: mount point ends in /Data — strip to snapshot root.
+            let root = String(mp.dropLast("/Data".count))
+            backupPoints.insert(root)
+            mountAdded += 1
+        } else {
+            // .backup mount point IS the backup point.
+            backupPoints.insert(mp)
+            mountAdded += 1
+        }
+    }
+    log("Points after mount-table: \(backupPoints.count) (added \(mountAdded))")
     
     // 1. Discover mounted TM drives via destinationinfo (Most common)
     let destInfo = runProcess("/usr/bin/tmutil", args: ["destinationinfo"])
@@ -172,14 +203,19 @@ func findVersions(for inputPath: String, debugLogger: ((String) -> Void)? = nil)
     log("Points after local snaps: \(backupPoints.count)")
     
     // 3. tmutil listbackups -m (Mounts and lists EVERY available historical backup)
+    // Tolerates "Operation not permitted" / "requires Full Disk Access" (no FDA) silently.
     let tmutilOutput = runProcess("/usr/bin/tmutil", args: ["listbackups", "-m"])
     log("tmutil listbackups -m output lines: \(tmutilOutput.components(separatedBy: .newlines).count)")
-    for path in tmutilOutput.components(separatedBy: .newlines) where !path.isEmpty {
+    for rawPath in tmutilOutput.components(separatedBy: .newlines) {
+        let path = rawPath.trimmingCharacters(in: .whitespaces)
+        // Only absolute paths are real backup points; skip tmutil error lines.
+        guard path.hasPrefix("/") else { continue }
         backupPoints.insert(path)
     }
     log("Points after listbackups -m: \(backupPoints.count)")
     
     // 4. Hidden volumes (Source 3 legacy crawl fallback)
+    // FDA-gated subdir listing fails without FDA ("Operation not permitted") — tolerated silently.
     let tmHidden = "/Volumes/.timemachine"
     if let uuids = try? fm.contentsOfDirectory(atPath: tmHidden) {
         for uuid in uuids {
@@ -191,19 +227,27 @@ func findVersions(for inputPath: String, debugLogger: ((String) -> Void)? = nil)
             }
         }
     }
+    log("Points after .timemachine crawl: \(backupPoints.count)")
     
     // 5. Hidden localsnapshots discovery via tmutil dates (Backup to mounted ones)
+    // `listlocalsnapshotdates /` works WITHOUT FDA; subdir crawl tolerates denial silently.
     let snapOutput = runProcess("/usr/bin/tmutil", args: ["listlocalsnapshotdates", "/"])
+    var snapAdded = 0
     for line in snapOutput.components(separatedBy: .newlines) where line.contains("-") {
+        // Skip error lines that happen to contain a hyphen.
+        if line.contains("requires Full Disk Access") || line.contains("Operation not permitted") { continue }
+        if line.hasPrefix("tmutil:") { continue }
         let snapshotDate = line.trimmingCharacters(in: .whitespaces)
         if !snapshotDate.isEmpty {
             if let computers = try? fm.contentsOfDirectory(atPath: snapRoot) {
                 for computer in computers {
                     backupPoints.insert("\(snapRoot)/\(computer)/\(snapshotDate)")
+                    snapAdded += 1
                 }
             }
         }
     }
+    log("Points after listlocalsnapshotdates: \(backupPoints.count) (added \(snapAdded))")
 
     log("Found \(backupPoints.count) potential backup points. Searching for file...")
 
@@ -237,6 +281,9 @@ func findVersions(for inputPath: String, debugLogger: ((String) -> Void)? = nil)
         let ts = URL(fileURLWithPath: point).lastPathComponent
             .replacingOccurrences(of: ".previous", with: "")
             .replacingOccurrences(of: ".backup", with: "")
+        // Skip non-backup dirs (e.g. computer-name parents like "Mac Mini")
+        // that would otherwise show up with bogus titles.
+        guard ts == "Latest" || (ts.first?.isNumber == true && ts.contains("-")) else { continue }
         
         // 1. Check common volume roots inside the point (Data, Macintosh HD, etc.)
         if let contents = try? fm.contentsOfDirectory(atPath: point) {
@@ -339,6 +386,33 @@ func outputAlfredJSON(versions: [BackupVersion], originalPath: String) {
 // MARK: - Restore
 func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
     let fm = FileManager.default
+
+    // Best-effort restore logging (failures were previously invisible).
+    let restoreLogPath = "/tmp/alfred-tm-restore.log"
+    let logRestore = { (msg: String) in
+        let line = "[\(Date().description)] \(msg)\n"
+        if let data = line.data(using: .utf8) {
+            if fm.fileExists(atPath: restoreLogPath) {
+                if let handle = try? FileHandle(forWritingTo: URL(fileURLWithPath: restoreLogPath)) {
+                    handle.seekToEndOfFile()
+                    handle.write(data)
+                    handle.closeFile()
+                }
+            } else {
+                try? data.write(to: URL(fileURLWithPath: restoreLogPath))
+            }
+        }
+    }
+    logRestore("restore source=\(sourcePath) dest=\(destPath) toHome=\(toHome)")
+
+    // Pre-check FDA before attempting copy: without it the copy fails with
+    // "Operation not permitted" and the failure looked like success downstream.
+    if !hasFullDiskAccess() {
+        let msg = "Restore failed: Alfred needs Full Disk Access. Enable it in System Settings → Privacy & Security → Full Disk Access, restart Alfred, and try again."
+        print(msg)
+        logRestore("FAIL FDA missing source=\(sourcePath) dest=\(destPath) toHome=\(toHome)")
+        exit(1)
+    }
     
     // Safety Guard: Prevent restoring top-level system folders by accident
     let forbiddenPaths = ["/Applications", "/Library", "/System", "/Users", "/Volumes", "/bin", "/sbin", "/usr", "/etc", "/var"]
@@ -346,6 +420,7 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
     if forbiddenPaths.contains(standardizedDest) {
         print("Error: For safety, you cannot restore a root-level system folder (\(standardizedDest)).")
         print("Please select a specific file or application inside the folder instead.")
+        logRestore("FAIL forbidden dest=\(standardizedDest)")
         exit(1)
     }
 
@@ -422,8 +497,10 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
             try attemptCopy(to: homeDest)
             finalizeRestore(at: homeDest)
             print("Successfully restored to Home folder as \(restoredName)")
+            logRestore("SUCCESS dest=\(homeDest) source=\(sourcePath)")
         } catch {
             print("Restore failed: \(error.localizedDescription)")
+            logRestore("FAIL error=\(error.localizedDescription) source=\(sourcePath) dest=\(homeDest)")
             exit(1)
         }
     } else {
@@ -432,14 +509,17 @@ func restore(sourcePath: String, destPath: String, toHome: Bool = false) {
             try attemptCopy(to: originalDest)
             finalizeRestore(at: originalDest)
             print("Successfully restored to \(URL(fileURLWithPath: originalDest).lastPathComponent)")
+            logRestore("SUCCESS dest=\(originalDest) source=\(sourcePath)")
         } catch {
             // Fallback to home folder if permission denied or other error
             do {
                 try attemptCopy(to: homeDest)
                 finalizeRestore(at: homeDest)
                 print("Restored to Home folder (original folder is read-only or permission denied)")
+                logRestore("SUCCESS fallback dest=\(homeDest) source=\(sourcePath) originalError=\(error.localizedDescription)")
             } catch let fallbackError {
                 print("Restore failed entirely: \(fallbackError.localizedDescription)")
+                logRestore("FAIL error=\(fallbackError.localizedDescription) source=\(sourcePath) dest=\(originalDest) fallback=\(homeDest)")
                 exit(1)
             }
         }
