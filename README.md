@@ -88,6 +88,13 @@ Alfred Time Machine automatically handles Gatekeeper issues when restoring `.app
 
 ## Troubleshooting
 
+- **"Apple could not verify alfred-tm is free of malware" on install** — Expected for the GitHub Release download: the binary is ad-hoc signed, and macOS quarantines downloaded files. Verify you downloaded from [Releases](https://github.com/saihgupr/AlfredTimeMachine/releases/latest), then clear the quarantine flag on your own copy and verify:
+  ```bash
+  xattr -d com.apple.quarantine alfred-tm
+  codesign -dv alfred-tm
+  spctl -a -vv alfred-tm
+  ```
+  Or Right-click the workflow / binary > Open to approve once. Proper Developer ID signing + notarization is planned to remove this prompt. Never disable Gatekeeper globally (`spctl --master-disable`).
 - **No versions found, but backups exist** — Alfred lost Full Disk Access (see above). If access is granted and the list is still empty, that file genuinely has no backup copies yet.
 - **Restore fails** — Same cause 9 times out of 10. Re-enable Full Disk Access for Alfred and restart it.
 - **Restored copy lands in your Home folder instead** — The original folder is read-only or permission denied, so the workflow falls back to Home rather than failing.
