@@ -15,7 +15,15 @@ Instant file & app restoration from Time Machine backups, right from Alfred. No 
 1.  **`alfred-tm` binary** — A compiled Swift CLI that instantly scans your Time Machine backups (both external drives and local APFS snapshots) to find historical versions.
 2.  **Alfred Workflow** — A clean, fast picker UI for your Universal Actions.
 
+Everything runs locally on your Mac. The workflow makes no network calls and sends nothing anywhere.
+
 ## Installation
+
+### Requirements
+
+- macOS with Time Machine set up (local snapshots work even with no backup disk attached)
+- Alfred 5 with the Powerpack license (Universal Actions are a Powerpack feature)
+- Full Disk Access for Alfred (see below)
 
 ### Option 1: Download from Releases (Recommended)
 
@@ -31,8 +39,11 @@ cd AlfredTimeMachine
 bash deploy.sh
 ```
 
-> [!IMPORTANT]
-> **Alfred Powerpack required.** Universal Actions require Alfred's Powerpack license.
+### Full Disk Access (Required)
+
+Alfred needs **Full Disk Access** or the version list comes up empty and restores fail. Enable it under `System Settings > Privacy & Security > Full Disk Access`, then restart Alfred.
+
+macOS updates can silently revoke the permission. If restores worked and suddenly stop after an update, remove Alfred from the list, re-add it, and restart Alfred.
 
 ## Usage
 
@@ -44,7 +55,7 @@ bash deploy.sh
 4.  Browse the versions found:
     - **External Drive** — Backups from your Time Machine disk.
     - **Local Snapshot** — Recent backups stored on your internal drive (last ~24h).
-5.  Press **↩ Enter** to restore.
+5.  Pick a version and press **↩ Enter** to restore (see shortcuts below for Home folder and in-place options).
 
 ### Keyboard Shortcuts
 
@@ -52,7 +63,7 @@ bash deploy.sh
 | :--- | :--- |
 | `↩ Enter` | Restore as `(Restored)` next to the original |
 | `⌘↩ Enter` | Restore a copy to your Home folder instead |
-| `⌥↩ Enter` | Replace original in place with this version |
+| `⌥↩ Enter` | Replace original in place with this version (no undo) |
 
 ---
 
@@ -67,7 +78,7 @@ You can use the binary directly from your terminal:
 ./alfred-tm list "/path/to/file"
 
 # Restore a specific version
-./alfred-tm restore "/source/backup/path" "/original/path"
+./alfred-tm restore "/source/backup/path" "/original/path" [--home | --replace]
 ```
 
 ### Automatic "Damaged" App Fix
@@ -75,8 +86,17 @@ Alfred Time Machine automatically handles Gatekeeper issues when restoring `.app
 
 ---
 
+## Troubleshooting
+
+- **No versions found, but backups exist** — Alfred lost Full Disk Access (see above). If access is granted and the list is still empty, that file genuinely has no backup copies yet.
+- **Restore fails** — Same cause 9 times out of 10. Re-enable Full Disk Access for Alfred and restart it.
+- **Restored copy lands in your Home folder instead** — The original folder is read-only or permission denied, so the workflow falls back to Home rather than failing.
+- **Replaced the wrong version with ⌥↩?** — There is no undo. Check `/tmp/alfred-tm-restore.log` to see exactly which backup was used, then restore the right one over it.
+
+---
+
 ## Contributing & Support
 
 If you run into a bug, have an idea for a feature, or want to ask a question, feel free to open an [issue](https://github.com/saihgupr/AlfredTimeMachine/issues/new/choose). Pull requests are also warmly welcome!
 
-If **Alfred Time Machine** saves you time, consider leaving a ⭐ **star** on GitHub or supporting development on [Ko-fi ☕️](https://ko-fi.com/saihgupr).
+Like it? Star it on GitHub ⭐. Love it? Feel free to buy me a [Ko-fi ☕️](https://ko-fi.com/saihgupr).
